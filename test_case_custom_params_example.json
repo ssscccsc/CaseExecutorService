@@ -1,0 +1,52 @@
+{
+  "taskId": "TASK_1234567890_192_168_1_100",
+  "executorIp": "192.168.1.100",
+  "testCaseSetId": 1,
+  "testCaseSetPath": "http://example.com/testcase.zip",
+  "testCaseList": [
+    {
+      "testCaseId": 1,
+      "testCaseNumber": "TC001",
+      "round": 1
+    },
+    {
+      "testCaseId": 2,
+      "testCaseNumber": "TC002", 
+      "round": 1
+    },
+    {
+      "testCaseId": 3,
+      "testCaseNumber": "TC003",
+      "round": 1
+    }
+  ],
+  "resultReportUrl": "http://datacollect.example.com/api/test-result/report",
+  "logReportUrl": "http://gohttpserver.example.com",
+  "ueList": [
+    {
+      "id": 1,
+      "ueId": "UE001",
+      "name": "测试设备1",
+      "purpose": "网络测试",
+      "networkTypeId": 1,
+      "networkTypeName": "4G",
+      "vendor": "华为",
+      "port": "COM1",
+      "description": "4G网络测试设备",
+      "status": 1
+    }
+  ],
+  "collectStrategyInfo": {
+    "id": 1,
+    "name": "网络连接测试策略",
+    "collectCount": 3,
+    "testCaseSetId": 1,
+    "businessCategory": "网络测试",
+    "app": "网络连接测试",
+    "intent": "连接稳定性测试",
+    "customParams": "[{\"key\":\"globalTimeout\",\"value\":\"60\"}]",
+    "description": "测试网络连接的稳定性",
+    "status": 1
+  },
+  "taskCustomParams": "{\"1\":[{\"key\":\"timeout\",\"value\":\"30\"},{\"key\":\"retryCount\",\"value\":\"3\"},{\"key\":\"quality\",\"value\":\"高清\"}],\"2\":[{\"key\":\"timeout\",\"value\":\"60\"},{\"key\":\"retryCount\",\"value\":\"5\"},{\"key\":\"quality\",\"value\":\"4K\"}],\"3\":[{\"key\":\"timeout\",\"value\":\"120\"},{\"key\":\"retryCount\",\"value\":\"2\"},{\"key\":\"quality\",\"value\":\"标清\"}]}"
+}

@@ -183,22 +183,22 @@ public class PythonExecutorUtil implements ApplicationContextAware {
                 commandArgs.add("\"" + collectStrategyInfo.getIntent() + "\"");
             }
             
-            // 添加采集任务的自定义参数
+            // 添加采集任务的自定义参数（支持用例级别参数）
             if (taskCustomParams != null && !taskCustomParams.trim().isEmpty()) {
                 try {
-                    // 解析自定义参数字符串，支持JSON格式
-                    Map<String, String> customParamsMap = parseCustomParams(taskCustomParams);
+                    // 解析用例级别的自定义参数
+                    Map<String, String> customParamsMap = parseTestCaseCustomParams(taskCustomParams, testCaseId);
                     for (Map.Entry<String, String> entry : customParamsMap.entrySet()) {
                         String key = entry.getKey();
                         String value = entry.getValue();
                         if (key != null && !key.trim().isEmpty() && value != null) {
                             commandArgs.add("--" + key);
                             commandArgs.add("\"" + value + "\"");
-                            log.info("添加采集任务自定义参数: --{} \"{}\"", key, value);
+                            log.info("添加用例{}的自定义参数: --{} \"{}\"", testCaseId, key, value);
                         }
                     }
                 } catch (Exception e) {
-                    log.warn("解析采集任务自定义参数失败: {}, 错误: {}", taskCustomParams, e.getMessage());
+                    log.warn("解析用例{}的自定义参数失败: {}, 错误: {}", testCaseId, taskCustomParams, e.getMessage());
                 }
             }
         }
@@ -294,6 +294,58 @@ public class PythonExecutorUtil implements ApplicationContextAware {
                 log.error("读取Python进程输出时发生错误 - 用例ID: {}, 轮次: {}, 错误: {}", testCaseId, round, e.getMessage(), e);
             }
         });
+    }
+    
+    /**
+     * 解析用例级别的自定义参数
+     * 从任务自定义参数中提取指定用例ID的参数
+     * 
+     * @param taskCustomParams 任务自定义参数（包含所有用例的参数）
+     * @param testCaseId 用例ID
+     * @return 解析后的参数Map
+     */
+    private static Map<String, String> parseTestCaseCustomParams(String taskCustomParams, Long testCaseId) {
+        Map<String, String> paramsMap = new HashMap<>();
+        
+        if (taskCustomParams == null || taskCustomParams.trim().isEmpty()) {
+            return paramsMap;
+        }
+        
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(taskCustomParams);
+            
+            // 检查是否是按用例ID分组的格式：{"1": [{"key":"timeout","value":"30"}], "2": [...]}
+            if (rootNode.isObject()) {
+                String testCaseIdStr = String.valueOf(testCaseId);
+                if (rootNode.has(testCaseIdStr)) {
+                    JsonNode testCaseParams = rootNode.get(testCaseIdStr);
+                    if (testCaseParams.isArray()) {
+                        for (JsonNode param : testCaseParams) {
+                            if (param.isObject() && param.has("key") && param.has("value")) {
+                                String key = param.get("key").asText();
+                                String value = param.get("value").asText();
+                                if (key != null && !key.trim().isEmpty() && value != null) {
+                                    paramsMap.put(key.trim(), value.trim());
+                                    log.debug("解析到用例{}的参数: key={}, value={}", testCaseId, key, value);
+                                }
+                            }
+                        }
+                        log.info("成功解析用例{}的自定义参数: {}个参数", testCaseId, paramsMap.size());
+                        return paramsMap;
+                    }
+                }
+            }
+            
+            // 如果不是按用例ID分组的格式，则解析为全局参数
+            log.info("未找到用例{}的专用参数，使用全局参数", testCaseId);
+            return parseCustomParams(taskCustomParams);
+            
+        } catch (Exception e) {
+            log.warn("解析用例{}的自定义参数失败: {}, 错误: {}", testCaseId, taskCustomParams, e.getMessage());
+            // 降级到全局参数解析
+            return parseCustomParams(taskCustomParams);
+        }
     }
     
     /**
