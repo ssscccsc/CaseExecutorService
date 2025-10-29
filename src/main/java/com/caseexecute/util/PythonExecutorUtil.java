@@ -185,22 +185,31 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             }
             
             // 添加采集任务的自定义参数
+            log.info("开始处理自定义参数: {}", taskCustomParams);
             if (taskCustomParams != null && !taskCustomParams.trim().isEmpty()) {
                 try {
                     // 解析自定义参数字符串，支持JSON格式
                     Map<String, String> customParamsMap = parseCustomParams(taskCustomParams);
-                    for (Map.Entry<String, String> entry : customParamsMap.entrySet()) {
-                        String key = entry.getKey();
-                        String value = entry.getValue();
-                        if (key != null && !key.trim().isEmpty() && value != null) {
-                            commandArgs.add("--" + key);
-                            commandArgs.add("\"" + value + "\"");
-                            log.info("添加采集任务自定义参数: --{} \"{}\"", key, value);
+                    log.info("解析自定义参数结果: {}, 参数数量: {}", customParamsMap, customParamsMap.size());
+                    
+                    if (customParamsMap.isEmpty()) {
+                        log.warn("自定义参数解析后为空，原始参数: {}", taskCustomParams);
+                    } else {
+                        for (Map.Entry<String, String> entry : customParamsMap.entrySet()) {
+                            String key = entry.getKey();
+                            String value = entry.getValue();
+                            if (key != null && !key.trim().isEmpty() && value != null) {
+                                commandArgs.add("--" + key);
+                                commandArgs.add("\"" + value + "\"");
+                                log.info("添加采集任务自定义参数: --{} \"{}\"", key, value);
+                            }
                         }
                     }
                 } catch (Exception e) {
-                    log.warn("解析采集任务自定义参数失败: {}, 错误: {}", taskCustomParams, e.getMessage());
+                    log.error("解析采集任务自定义参数失败: {}, 错误: {}", taskCustomParams, e.getMessage(), e);
                 }
+            } else {
+                log.warn("自定义参数为空或null: {}", taskCustomParams);
             }
         }
         
@@ -313,50 +322,74 @@ public class PythonExecutorUtil implements ApplicationContextAware {
         
         String trimmedParams = customParams.trim();
         
-        // 解析JSON数组格式
-        if (trimmedParams.startsWith("[") && trimmedParams.endsWith("]")) {
-            try {
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode jsonArray = objectMapper.readTree(trimmedParams);
-                
-                if (jsonArray.isArray()) {
-                    for (JsonNode item : jsonArray) {
-                        if (item.isObject()) {
-                            // 处理{"key":"a","value":"高清"}格式的参数
-                            String key = null;
-                            String value = null;
-                            
-                            if (item.has("key")) {
-                                key = item.get("key").asText();
-                            }
-                            if (item.has("value")) {
-                                value = item.get("value").asText();
-                            }
-                            
-                            // 如果key和value都存在且不为空，则添加到参数映射中
-                            if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
-                                paramsMap.put(key.trim(), value.trim());
-                                log.debug("解析到参数: key={}, value={}", key, value);
-                            }
-                        } else if (item.isTextual()) {
-                            // 处理字符串格式的参数，尝试解析为key=value
-                            String itemStr = item.asText();
-                            String[] keyValue = itemStr.split("=", 2);
-                            if (keyValue.length == 2) {
-                                paramsMap.put(keyValue[0].trim(), keyValue[1].trim());
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(trimmedParams);
+            
+            // 处理 {"caseId": [{"key":"k","value":"v"}...]} 格式
+            if (rootNode.isObject()) {
+                log.info("解析对象格式自定义参数: {}", customParams);
+                for (JsonNode caseNode : rootNode) {
+                    if (caseNode.isArray()) {
+                        for (JsonNode item : caseNode) {
+                            if (item.isObject()) {
+                                String key = null;
+                                String value = null;
+                                
+                                if (item.has("key")) {
+                                    key = item.get("key").asText();
+                                }
+                                if (item.has("value")) {
+                                    value = item.get("value").asText();
+                                }
+                                
+                                if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                                    paramsMap.put(key.trim(), value.trim());
+                                    log.debug("解析到参数: key={}, value={}", key, value);
+                                }
                             }
                         }
                     }
-                    log.info("成功解析JSON数组格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
-                    return paramsMap;
                 }
-            } catch (Exception e) {
-                log.warn("JSON数组格式解析失败: {}, 错误: {}", customParams, e.getMessage());
+                log.info("成功解析对象格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
+                return paramsMap;
             }
-        } else {
-            log.warn("自定义参数不是JSON数组格式，跳过解析: {}", customParams);
+            // 处理 [{"key":"k","value":"v"}...] 格式
+            else if (rootNode.isArray()) {
+                log.info("解析数组格式自定义参数: {}", customParams);
+                for (JsonNode item : rootNode) {
+                    if (item.isObject()) {
+                        String key = null;
+                        String value = null;
+                        
+                        if (item.has("key")) {
+                            key = item.get("key").asText();
+                        }
+                        if (item.has("value")) {
+                            value = item.get("value").asText();
+                        }
+                        
+                        if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                            paramsMap.put(key.trim(), value.trim());
+                            log.debug("解析到参数: key={}, value={}", key, value);
+                        }
+                    } else if (item.isTextual()) {
+                        // 处理字符串格式的参数，尝试解析为key=value
+                        String itemStr = item.asText();
+                        String[] keyValue = itemStr.split("=", 2);
+                        if (keyValue.length == 2) {
+                            paramsMap.put(keyValue[0].trim(), keyValue[1].trim());
+                        }
+                    }
+                }
+                log.info("成功解析数组格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
+                return paramsMap;
+            }
+        } catch (Exception e) {
+            log.warn("JSON格式解析失败: {}, 错误: {}", customParams, e.getMessage());
         }
         
+        log.warn("自定义参数格式不支持，跳过解析: {}", customParams);
         return paramsMap;
     }
     
