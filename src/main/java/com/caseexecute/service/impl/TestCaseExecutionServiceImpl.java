@@ -503,11 +503,11 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             // 降级到原有的分析逻辑
             if ("SUCCESS".equals(status)) {
                 // 检查是否真的成功
-                if (logContent.contains("FAIL") || logContent.contains("ERROR") || logContent.contains("失败")) {
+                if (logContent.contains("case failed")) {
                     status = "FAILED";
                     result = "用例执行失败";
                     failureReason = "日志分析发现失败信息: " + extractFailureDetails(logContent);
-                } else if (logContent.contains("PASS") || logContent.contains("SUCCESS") || logContent.contains("成功")) {
+                } else if (logContent.contains("case success")) {
                     status = "SUCCESS";
                     result = "用例执行成功";
                     failureReason = null;
@@ -913,9 +913,9 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         
         String lowerContent = logContent.toLowerCase();
         
-        if (lowerContent.contains("pass") || lowerContent.contains("success") || lowerContent.contains("成功")) {
+        if (lowerContent.contains("case success")) {
             return new TestResultAnalysis("SUCCESS", "用例执行成功", null);
-        } else if (lowerContent.contains("fail") || lowerContent.contains("error") || lowerContent.contains("失败")) {
+        } else if (lowerContent.contains("case failed")) {
             return new TestResultAnalysis("FAILED", "用例执行失败", extractFailureDetails(logContent));
         } else {
             return new TestResultAnalysis("BLOCKED", "无法确定执行结果", "日志内容无法解析");

@@ -66,8 +66,8 @@ public class TestCaseResultParser {
         String status = "BLOCKED";
         String resultMessage = "用例执行被阻塞";
         
-        // 检查成功标识
-        if (logContent.contains("PASS") || logContent.contains("SUCCESS") || logContent.contains("成功")) {
+        // 检查成功标识 - 使用 "case success" 作为成功条件
+        if (logContent.contains("case success")) {
             if (result.getFailedTests() == 0 && result.getErrorTests() == 0) {
                 status = "SUCCESS";
                 resultMessage = "用例执行成功";
@@ -78,8 +78,8 @@ public class TestCaseResultParser {
             }
         }
         
-        // 检查失败标识
-        if (logContent.contains("FAIL") || logContent.contains("ERROR") || logContent.contains("失败")) {
+        // 检查失败标识 - 使用 "case failed" 作为失败条件
+        if (logContent.contains("case failed")) {
             status = "FAILED";
             resultMessage = "用例执行失败";
         }

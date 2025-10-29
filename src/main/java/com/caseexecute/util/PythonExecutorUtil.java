@@ -990,11 +990,11 @@ public class PythonExecutorUtil implements ApplicationContextAware {
         String result = "用例执行成功";
         String failureReason = null;
 
-        if (logContent.contains("FAIL") || logContent.contains("ERROR") || logContent.contains("失败")) {
+        if (logContent.contains("case failed")) {
             status = "FAILED";
             result = "用例执行失败";
-            failureReason = "用例执行失败，日志中包含FAIL、ERROR或失败";
-        } else if (logContent.contains("PASS") || logContent.contains("SUCCESS") || logContent.contains("成功")) {
+            failureReason = "用例执行失败，日志中包含case failed";
+        } else if (logContent.contains("case success")) {
             status = "SUCCESS";
             result = "用例执行成功";
             failureReason = null; // 成功时没有失败原因
