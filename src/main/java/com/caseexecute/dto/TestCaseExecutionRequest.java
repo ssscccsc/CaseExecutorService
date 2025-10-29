@@ -191,6 +191,11 @@ public class TestCaseExecutionRequest {
         private String app;
         
         /**
+         * APP英文名
+         */
+        private String appEn;
+        
+        /**
          * 意图
          */
         private String intent;

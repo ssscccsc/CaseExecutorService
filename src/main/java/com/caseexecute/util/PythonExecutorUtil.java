@@ -143,8 +143,9 @@ public class PythonExecutorUtil implements ApplicationContextAware {
         
         // 记录采集策略信息
         if (collectStrategyInfo != null) {
-            log.info("采集策略信息 - 业务大类: {}, APP: {}, 意图: {}", 
-                    collectStrategyInfo.getBusinessCategory(), collectStrategyInfo.getApp(), collectStrategyInfo.getIntent());
+            log.info("采集策略信息 - 业务大类: {}, APP: {}, APPEN: {}, 意图: {}", 
+                    collectStrategyInfo.getBusinessCategory(), collectStrategyInfo.getApp(), 
+                    collectStrategyInfo.getAppEn(), collectStrategyInfo.getIntent());
         } else {
             log.warn("未提供采集策略信息");
         }
@@ -174,9 +175,9 @@ public class PythonExecutorUtil implements ApplicationContextAware {
                 commandArgs.add("--category");
                 commandArgs.add("\"" + collectStrategyInfo.getBusinessCategory() + "\"");
             }
-            if (collectStrategyInfo.getApp() != null && !collectStrategyInfo.getApp().trim().isEmpty()) {
+            if (collectStrategyInfo.getAppEn() != null && !collectStrategyInfo.getAppEn().trim().isEmpty()) {
                 commandArgs.add("--app");
-                commandArgs.add("\"" + collectStrategyInfo.getApp() + "\"");
+                commandArgs.add("\"" + collectStrategyInfo.getAppEn() + "\"");
             }
             if (collectStrategyInfo.getIntent() != null && !collectStrategyInfo.getIntent().trim().isEmpty()) {
                 commandArgs.add("--dataset_round");

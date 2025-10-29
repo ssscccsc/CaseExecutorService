@@ -957,6 +957,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             log.info("  - 采集次数: {}", strategy.getCollectCount());
             log.info("  - 业务大类: {}", strategy.getBusinessCategory());
             log.info("  - APP: {}", strategy.getApp());
+            log.info("  - APPEN: {}", strategy.getAppEn());
             log.info("  - 意图: {}", strategy.getIntent());
             log.info("  - 策略状态: {}", strategy.getStatus());
             if (strategy.getCustomParams() != null && !strategy.getCustomParams().trim().isEmpty()) {
