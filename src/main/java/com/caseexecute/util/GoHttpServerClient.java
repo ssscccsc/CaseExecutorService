@@ -49,9 +49,28 @@ public class GoHttpServerClient {
         log.info("开始上传本地文件到gohttpserver: {} -> {}, 服务器地址: {}", localFilePath, targetFileName, goHttpServerUrl);
         
         try {
-            Path sourcePath = Paths.get(localFilePath);
+            // 验证输入参数
+            if (localFilePath == null || localFilePath.trim().isEmpty()) {
+                throw new IOException("本地文件路径不能为空");
+            }
+            if (targetFileName == null || targetFileName.trim().isEmpty()) {
+                throw new IOException("目标文件名不能为空");
+            }
+            if (goHttpServerUrl == null || goHttpServerUrl.trim().isEmpty()) {
+                throw new IOException("gohttpserver地址不能为空");
+            }
+            
+            // 转换为绝对路径
+            Path sourcePath = Paths.get(localFilePath).toAbsolutePath();
+            log.info("解析后的绝对路径: {}", sourcePath.toString());
+            
             if (!Files.exists(sourcePath)) {
-                throw new IOException("源文件不存在: " + localFilePath);
+                throw new IOException("源文件不存在: " + sourcePath.toString() + " (原始路径: " + localFilePath + ")");
+            }
+            
+            // 验证文件是否可读
+            if (!Files.isReadable(sourcePath)) {
+                throw new IOException("源文件不可读: " + sourcePath.toString());
             }
             
             // 构建上传URL，使用gohttpserver的标准上传接口，拼上taskId目录
@@ -64,21 +83,26 @@ public class GoHttpServerClient {
             
             // 读取文件内容
             byte[] fileBytes = Files.readAllBytes(sourcePath);
+            log.info("文件读取成功 - 文件大小: {} bytes", fileBytes.length);
             
             // 构建multipart请求
             String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
             byte[] multipartBody = buildMultipartBody(fileBytes, targetFileName, boundary);
+            log.info("构建multipart请求成功 - 请求体大小: {} bytes, 上传URL: {}", multipartBody.length, uploadUrl);
             
             // 发送HTTP请求
             HttpPost request = new HttpPost(uploadUrl);
             request.setHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
             request.setEntity(new ByteArrayEntity(multipartBody));
             
+            log.info("发送HTTP POST请求到: {}", uploadUrl);
             CloseableHttpResponse response = httpClient.execute(request);
             
             try {
                 int statusCode = response.getStatusLine().getStatusCode();
                 String responseBody = EntityUtils.toString(response.getEntity());
+                
+                log.info("HTTP响应 - 状态码: {}, 响应体: {}", statusCode, responseBody);
                 
                 if (statusCode == 200 || statusCode == 201) {
                     String fileUrl;
@@ -90,7 +114,8 @@ public class GoHttpServerClient {
                     log.info("本地文件上传成功: {}", fileUrl);
                     return fileUrl;
                 } else {
-                    throw new IOException("上传失败，HTTP状态码: " + statusCode + ", 响应: " + responseBody);
+                    log.error("上传失败 - HTTP状态码: {}, 响应: {}, 上传URL: {}", statusCode, responseBody, uploadUrl);
+                    throw new IOException("上传失败，HTTP状态码: " + statusCode + ", 响应: " + responseBody + ", 上传URL: " + uploadUrl);
                 }
             } finally {
                 response.close();

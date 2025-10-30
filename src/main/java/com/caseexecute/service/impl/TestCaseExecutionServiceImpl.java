@@ -809,12 +809,35 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             String uploadedLogUrl = null;
             if (request.getLogReportUrl() != null && !request.getLogReportUrl().trim().isEmpty()) {
                 try {
-                    com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
-                    uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
-                    log.info("日志文件上传成功 - 用例ID: {}, 轮次: {}, 上传URL: {}", testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
+                    // 诊断日志文件路径问题
+                    LogUploadDiagnosticTool.diagnoseLogFilePath(logFilePath.toString(), request.getTaskId(), 
+                            testCase.getTestCaseId(), testCase.getRound());
+                    
+                    // 诊断gohttpserver连接
+                    LogUploadDiagnosticTool.diagnoseGoHttpServer(request.getLogReportUrl(), request.getTaskId());
+                    
+                    // 验证日志文件是否存在
+                    if (!Files.exists(logFilePath)) {
+                        log.warn("日志文件不存在，跳过上传 - 用例ID: {}, 轮次: {}, 文件路径: {}", 
+                                testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
+                    } else {
+                        // 验证文件大小
+                        long fileSize = Files.size(logFilePath);
+                        if (fileSize == 0) {
+                            log.warn("日志文件为空，跳过上传 - 用例ID: {}, 轮次: {}, 文件路径: {}", 
+                                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
+                        } else {
+                            log.info("准备上传日志文件 - 用例ID: {}, 轮次: {}, 文件路径: {}, 文件大小: {} bytes", 
+                                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), fileSize);
+                            
+                            com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
+                            uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
+                            log.info("日志文件上传成功 - 用例ID: {}, 轮次: {}, 上传URL: {}", testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
+                        }
+                    }
                 } catch (Exception e) {
-                    log.error("日志文件上传失败 - 用例ID: {}, 轮次: {}, 错误: {}", 
-                            testCase.getTestCaseId(), testCase.getRound(), e.getMessage());
+                    log.error("日志文件上传失败 - 用例ID: {}, 轮次: {}, 文件路径: {}, 错误: {}", 
+                            testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), e.getMessage(), e);
                 }
             } else {
                 log.info("未提供gohttpserver地址，跳过日志文件上传 - 用例ID: {}, 轮次: {}", testCase.getTestCaseId(), testCase.getRound());
