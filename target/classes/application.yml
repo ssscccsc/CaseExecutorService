@@ -14,6 +14,11 @@ logging:
     org.springframework.web: debug
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/case-execute-service.log
+    max-size: 10MB
+    max-history: 30
 
 # 文件上传配置
 file:
@@ -30,6 +35,30 @@ case:
   execution:
     # 单个用例执行超时时长（分钟），默认5分钟
     timeout-minutes: 5
+    # 日志输出配置
+    log:
+      # 是否启用实时日志输出到控制台
+      enable-real-time-console-output: true
+      # 是否启用日志文件输出
+      enable-file-output: true
+      # 日志输出级别过滤（INFO, DEBUG, WARN, ERROR）
+      log-level: INFO
+      # 是否显示时间戳
+      show-timestamp: true
+      # 是否显示用例信息前缀
+      show-test-case-prefix: true
+    # 文件存储配置
+    file-storage:
+      # 文件存储根目录
+      root-directory: D:/opt
+      # 是否在任务完成后自动清理文件
+      auto-cleanup: true
+      # 文件保留时间（小时），超过此时间自动清理
+      retention-hours: 24
+      # 最大并发任务数
+      max-concurrent-tasks: 10
+      # 单个任务最大文件大小（MB）
+      max-file-size-mb: 1000
 
 # gohttpserver配置
 gohttpserver:

@@ -185,12 +185,12 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             }
             
             // 添加采集任务的自定义参数
-            log.info("开始处理自定义参数: {}", taskCustomParams);
+            log.info("开始处理自定义参数: {}, 用例ID: {}", taskCustomParams, testCaseId);
             if (taskCustomParams != null && !taskCustomParams.trim().isEmpty()) {
                 try {
-                    // 解析自定义参数字符串，支持JSON格式
-                    Map<String, String> customParamsMap = parseCustomParams(taskCustomParams);
-                    log.info("解析自定义参数结果: {}, 参数数量: {}", customParamsMap, customParamsMap.size());
+                    // 解析自定义参数字符串，支持JSON格式，根据用例ID过滤
+                    Map<String, String> customParamsMap = parseCustomParams(taskCustomParams, testCaseId);
+                    log.info("解析用例{}的自定义参数结果: {}, 参数数量: {}", testCaseId, customParamsMap, customParamsMap.size());
                     
                     if (customParamsMap.isEmpty()) {
                         log.warn("自定义参数解析后为空，原始参数: {}", taskCustomParams);
@@ -314,6 +314,18 @@ public class PythonExecutorUtil implements ApplicationContextAware {
      * @return 解析后的参数Map
      */
     private static Map<String, String> parseCustomParams(String customParams) {
+        return parseCustomParams(customParams, null);
+    }
+    
+    /**
+     * 解析自定义参数字符串，支持根据用例ID过滤
+     * 支持JSON格式和key=value格式
+     * 
+     * @param customParams 自定义参数字符串
+     * @param testCaseId 用例ID，用于过滤特定用例的参数
+     * @return 解析后的参数Map
+     */
+    private static Map<String, String> parseCustomParams(String customParams, Long testCaseId) {
         Map<String, String> paramsMap = new HashMap<>();
         
         if (customParams == null || customParams.trim().isEmpty()) {
@@ -329,60 +341,124 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             // 处理 {"caseId": [{"key":"k","value":"v"}...]} 格式
             if (rootNode.isObject()) {
                 log.info("解析对象格式自定义参数: {}", customParams);
-                for (JsonNode caseNode : rootNode) {
-                    if (caseNode.isArray()) {
-                        for (JsonNode item : caseNode) {
-                            if (item.isObject()) {
-                                String key = null;
-                                String value = null;
-                                
-                                if (item.has("key")) {
-                                    key = item.get("key").asText();
+                
+                // 如果指定了用例ID，只解析该用例的参数
+                if (testCaseId != null) {
+                    String caseIdKey = testCaseId.toString();
+                    if (rootNode.has(caseIdKey)) {
+                        JsonNode caseNode = rootNode.get(caseIdKey);
+                        if (caseNode.isArray()) {
+                            for (JsonNode item : caseNode) {
+                                if (item.isObject()) {
+                                    String key = null;
+                                    String value = null;
+                                    
+                                    if (item.has("key")) {
+                                        key = item.get("key").asText();
+                                    }
+                                    if (item.has("value")) {
+                                        value = item.get("value").asText();
+                                    }
+                                    
+                                    if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                                        paramsMap.put(key.trim(), value.trim());
+                                        log.debug("解析到用例{}的参数: key={}, value={}", testCaseId, key, value);
+                                    }
                                 }
-                                if (item.has("value")) {
-                                    value = item.get("value").asText();
-                                }
-                                
-                                if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
-                                    paramsMap.put(key.trim(), value.trim());
-                                    log.debug("解析到参数: key={}, value={}", key, value);
+                            }
+                        }
+                        log.info("成功解析用例{}的自定义参数: 解析出{}个参数", testCaseId, paramsMap.size());
+                    } else {
+                        log.info("未找到用例{}的自定义参数配置", testCaseId);
+                    }
+                } else {
+                    // 如果没有指定用例ID，解析所有用例的参数
+                    for (JsonNode caseNode : rootNode) {
+                        if (caseNode.isArray()) {
+                            for (JsonNode item : caseNode) {
+                                if (item.isObject()) {
+                                    String key = null;
+                                    String value = null;
+                                    
+                                    if (item.has("key")) {
+                                        key = item.get("key").asText();
+                                    }
+                                    if (item.has("value")) {
+                                        value = item.get("value").asText();
+                                    }
+                                    
+                                    if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                                        paramsMap.put(key.trim(), value.trim());
+                                        log.debug("解析到参数: key={}, value={}", key, value);
+                                    }
                                 }
                             }
                         }
                     }
+                    log.info("成功解析对象格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
                 }
-                log.info("成功解析对象格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
                 return paramsMap;
             }
             // 处理 [{"key":"k","value":"v"}...] 格式
             else if (rootNode.isArray()) {
                 log.info("解析数组格式自定义参数: {}", customParams);
-                for (JsonNode item : rootNode) {
-                    if (item.isObject()) {
-                        String key = null;
-                        String value = null;
-                        
-                        if (item.has("key")) {
-                            key = item.get("key").asText();
-                        }
-                        if (item.has("value")) {
-                            value = item.get("value").asText();
-                        }
-                        
-                        if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
-                            paramsMap.put(key.trim(), value.trim());
-                            log.debug("解析到参数: key={}, value={}", key, value);
-                        }
-                    } else if (item.isTextual()) {
-                        // 处理字符串格式的参数，尝试解析为key=value
-                        String itemStr = item.asText();
-                        String[] keyValue = itemStr.split("=", 2);
-                        if (keyValue.length == 2) {
-                            paramsMap.put(keyValue[0].trim(), keyValue[1].trim());
+                
+                // 如果指定了用例ID，检查数组中是否有用例ID匹配的参数
+                if (testCaseId != null) {
+                    for (JsonNode item : rootNode) {
+                        if (item.isObject()) {
+                            // 检查是否有testCaseId字段匹配
+                            if (item.has("testCaseId")) {
+                                Long itemTestCaseId = item.get("testCaseId").asLong();
+                                if (testCaseId.equals(itemTestCaseId)) {
+                                    String key = null;
+                                    String value = null;
+                                    
+                                    if (item.has("key")) {
+                                        key = item.get("key").asText();
+                                    }
+                                    if (item.has("value")) {
+                                        value = item.get("value").asText();
+                                    }
+                                    
+                                    if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                                        paramsMap.put(key.trim(), value.trim());
+                                        log.debug("解析到用例{}的参数: key={}, value={}", testCaseId, key, value);
+                                    }
+                                }
+                            }
                         }
                     }
+                    log.info("成功解析用例{}的数组格式自定义参数: 解析出{}个参数", testCaseId, paramsMap.size());
+                } else {
+                    // 如果没有指定用例ID，解析所有参数
+                    for (JsonNode item : rootNode) {
+                        if (item.isObject()) {
+                            String key = null;
+                            String value = null;
+                            
+                            if (item.has("key")) {
+                                key = item.get("key").asText();
+                            }
+                            if (item.has("value")) {
+                                value = item.get("value").asText();
+                            }
+                            
+                            if (key != null && !key.trim().isEmpty() && value != null && !value.trim().isEmpty()) {
+                                paramsMap.put(key.trim(), value.trim());
+                                log.debug("解析到参数: key={}, value={}", key, value);
+                            }
+                        } else if (item.isTextual()) {
+                            // 处理字符串格式的参数，尝试解析为key=value
+                            String itemStr = item.asText();
+                            String[] keyValue = itemStr.split("=", 2);
+                            if (keyValue.length == 2) {
+                                paramsMap.put(keyValue[0].trim(), keyValue[1].trim());
+                            }
+                        }
+                    }
+                    log.info("成功解析数组格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
                 }
-                log.info("成功解析数组格式自定义参数: {}, 解析出{}个参数", customParams, paramsMap.size());
                 return paramsMap;
             }
         } catch (Exception e) {
