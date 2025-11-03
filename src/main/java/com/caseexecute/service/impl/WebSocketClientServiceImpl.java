@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -34,7 +35,7 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
     private WebSocketClientConfig webSocketClientConfig;
     
     @Autowired
-    private TestCaseExecutionService testCaseExecutionService;
+    private ApplicationContext applicationContext;
     
     /**
      * 本地IP地址
@@ -275,8 +276,13 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             
             log.info("收到后台下发的任务 - 任务ID: {}", request.getTaskId());
             
-            // 调用任务执行服务处理任务
-            testCaseExecutionService.processTestCaseExecution(request);
+            // 调用任务执行服务处理任务（延迟获取Bean，避免循环依赖）
+            TestCaseExecutionService executionService = applicationContext.getBean(TestCaseExecutionService.class);
+            if (executionService != null) {
+                executionService.processTestCaseExecution(request);
+            } else {
+                log.error("无法获取TestCaseExecutionService，任务无法执行 - 任务ID: {}", request.getTaskId());
+            }
             
             // 发送任务接收确认
             WebSocketMessage response = new WebSocketMessage();
