@@ -1,17 +1,128 @@
 {
   "groups": [
     {
+      "name": "case-execution.log",
+      "type": "com.caseexecute.config.LogOutputConfig",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
       "name": "case.execution",
       "type": "com.caseexecute.config.CaseExecutionConfig",
       "sourceType": "com.caseexecute.config.CaseExecutionConfig"
+    },
+    {
+      "name": "case.execution.file-storage",
+      "type": "com.caseexecute.config.FileStorageConfig",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
+    {
+      "name": "websocket.client",
+      "type": "com.caseexecute.config.WebSocketClientConfig",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
     }
   ],
   "properties": [
+    {
+      "name": "case-execution.log.enable-file-output",
+      "type": "java.lang.Boolean",
+      "description": "是否启用日志文件输出",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case-execution.log.enable-real-time-console-output",
+      "type": "java.lang.Boolean",
+      "description": "是否启用实时日志输出到控制台",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case-execution.log.log-format",
+      "type": "java.lang.String",
+      "description": "日志输出格式",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case-execution.log.log-level",
+      "type": "java.lang.String",
+      "description": "日志输出级别过滤（INFO, DEBUG, WARN, ERROR）",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case-execution.log.show-test-case-prefix",
+      "type": "java.lang.Boolean",
+      "description": "是否显示用例信息前缀",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case-execution.log.show-timestamp",
+      "type": "java.lang.Boolean",
+      "description": "是否显示时间戳",
+      "sourceType": "com.caseexecute.config.LogOutputConfig"
+    },
+    {
+      "name": "case.execution.file-storage.auto-cleanup",
+      "type": "java.lang.Boolean",
+      "description": "是否在任务完成后自动清理文件",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
+    {
+      "name": "case.execution.file-storage.max-concurrent-tasks",
+      "type": "java.lang.Integer",
+      "description": "最大并发任务数",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
+    {
+      "name": "case.execution.file-storage.max-file-size-m-b",
+      "type": "java.lang.Long",
+      "description": "单个任务最大文件大小（MB）",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
+    {
+      "name": "case.execution.file-storage.retention-hours",
+      "type": "java.lang.Integer",
+      "description": "文件保留时间（小时），超过此时间自动清理",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
+    {
+      "name": "case.execution.file-storage.root-directory",
+      "type": "java.lang.String",
+      "description": "文件存储根目录",
+      "sourceType": "com.caseexecute.config.FileStorageConfig"
+    },
     {
       "name": "case.execution.timeout-minutes",
       "type": "java.lang.Integer",
       "description": "单个用例执行超时时长（分钟），默认1分钟",
       "sourceType": "com.caseexecute.config.CaseExecutionConfig"
+    },
+    {
+      "name": "websocket.client.connection-timeout",
+      "type": "java.lang.Long",
+      "description": "连接超时时间（秒）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用WebSocket连接",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.heartbeat-interval",
+      "type": "java.lang.Long",
+      "description": "心跳间隔（秒）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.reconnect-interval",
+      "type": "java.lang.Long",
+      "description": "重连间隔（秒）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.server-url",
+      "type": "java.lang.String",
+      "description": "后台服务地址（如：ws:\/\/localhost:8080）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig"
     }
   ],
   "hints": []

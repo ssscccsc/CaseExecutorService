@@ -63,3 +63,17 @@ case:
 # gohttpserver配置
 gohttpserver:
   url: http://localhost:8081
+
+# WebSocket客户端配置
+websocket:
+  client:
+    # 后台服务WebSocket地址（需要根据实际部署的公网IP修改）
+    server-url: ws://localhost:8080/api/ws/executor
+    # 是否启用WebSocket连接
+    enabled: true
+    # 重连间隔（秒）
+    reconnect-interval: 30
+    # 心跳间隔（秒）
+    heartbeat-interval: 30
+    # 连接超时时间（秒）
+    connection-timeout: 10
