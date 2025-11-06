@@ -238,6 +238,9 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
                 case "TASK":
                     handleTaskMessage(wsMessage);
                     break;
+                case "CANCEL":
+                    handleCancelMessage(wsMessage);
+                    break;
                 case "HEARTBEAT_RESPONSE":
                     log.debug("收到心跳响应");
                     break;
@@ -300,6 +303,58 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             
         } catch (Exception e) {
             log.error("处理任务消息失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 处理停止命令消息
+     */
+    private void handleCancelMessage(WebSocketMessage wsMessage) {
+        try {
+            // 解析停止命令数据
+            java.util.Map<String, Object> cancelData = (java.util.Map<String, Object>) wsMessage.getData();
+            if (cancelData == null) {
+                log.error("停止命令消息数据为空");
+                return;
+            }
+            
+            String taskId = (String) cancelData.get("taskId");
+            if (taskId == null || taskId.trim().isEmpty()) {
+                log.error("停止命令消息中任务ID为空");
+                return;
+            }
+            
+            log.info("收到后台下发的停止命令 - 任务ID: {}", taskId);
+            
+            // 调用任务执行服务取消任务（延迟获取Bean，避免循环依赖）
+            TestCaseExecutionService executionService = applicationContext.getBean(TestCaseExecutionService.class);
+            if (executionService != null) {
+                boolean cancelled = executionService.cancelTaskExecution(taskId);
+                if (cancelled) {
+                    log.info("任务已成功取消 - 任务ID: {}", taskId);
+                } else {
+                    log.warn("任务取消失败，可能任务不存在或已完成 - 任务ID: {}", taskId);
+                }
+            } else {
+                log.error("无法获取TestCaseExecutionService，停止命令无法执行 - 任务ID: {}", taskId);
+            }
+            
+            // 发送停止命令响应
+            WebSocketMessage response = new WebSocketMessage();
+            response.setType("CANCEL_RESPONSE");
+            response.setTimestamp(System.currentTimeMillis());
+            response.setMessageId(wsMessage.getMessageId());
+            response.setExecutorIp(localIp);
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("taskId", taskId);
+            data.put("status", "CANCELLED");
+            data.put("message", "停止命令已处理");
+            response.setData(data);
+            
+            sendMessage(JSON.toJSONString(response));
+            
+        } catch (Exception e) {
+            log.error("处理停止命令消息失败: {}", e.getMessage(), e);
         }
     }
     
