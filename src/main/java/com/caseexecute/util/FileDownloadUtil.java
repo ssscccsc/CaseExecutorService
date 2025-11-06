@@ -10,9 +10,9 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -36,7 +36,7 @@ public class FileDownloadUtil implements ApplicationContextAware {
     private static FileStorageConfig fileStorageConfig;
     
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         FileDownloadUtil.applicationContext = applicationContext;
         // 从ApplicationContext中获取FileStorageConfig
         FileDownloadUtil.fileStorageConfig = applicationContext.getBean(FileStorageConfig.class);
@@ -100,15 +100,143 @@ public class FileDownloadUtil implements ApplicationContextAware {
                 }
                 
                 HttpEntity entity = response.getEntity();
+                
+                // 获取文件总大小
+                long totalSize = entity.getContentLength();
+                if (totalSize < 0) {
+                    log.warn("无法获取文件大小，将不显示下载进度");
+                } else {
+                    log.info("文件大小: {} ({})", formatFileSize(totalSize), totalSize);
+                }
+                
                 try (InputStream inputStream = entity.getContent();
                      FileOutputStream outputStream = new FileOutputStream(filePath.toFile())) {
-                    IOUtils.copy(inputStream, outputStream);
+                    
+                    // 使用带进度监控的下载方法
+                    downloadWithProgress(inputStream, outputStream, totalSize, fileName, taskId);
                 }
             }
         }
         
         log.info("文件下载完成 - 路径: {}", filePath);
         return filePath;
+    }
+    
+    /**
+     * 带进度监控的下载方法
+     * 
+     * @param inputStream 输入流
+     * @param outputStream 输出流
+     * @param totalSize 文件总大小（字节），如果未知则为-1
+     * @param fileName 文件名
+     * @param taskId 任务ID
+     * @throws IOException IO异常
+     */
+    private static void downloadWithProgress(InputStream inputStream, FileOutputStream outputStream, 
+                                           long totalSize, String fileName, String taskId) throws IOException {
+        byte[] buffer = new byte[8192]; // 8KB缓冲区
+        long downloadedBytes = 0;
+        long lastReportTime = System.currentTimeMillis();
+        long lastReportBytes = 0;
+        int reportInterval = 1000; // 每1秒报告一次进度
+        
+        log.info("开始下载文件 - 文件名: {}, 任务ID: {}", fileName, taskId);
+        
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, bytesRead);
+            downloadedBytes += bytesRead;
+            
+            long currentTime = System.currentTimeMillis();
+            long timeElapsed = currentTime - lastReportTime;
+            
+            // 每1秒或每下载10%时报告一次进度
+            boolean shouldReport = false;
+            if (totalSize > 0) {
+                // 如果知道总大小，每10%报告一次，或每1秒报告一次
+                double progress = (double) downloadedBytes / totalSize * 100;
+                double lastProgress = (double) lastReportBytes / totalSize * 100;
+                shouldReport = (timeElapsed >= reportInterval) || (progress - lastProgress >= 10.0);
+            } else {
+                // 如果不知道总大小，每1秒报告一次
+                shouldReport = timeElapsed >= reportInterval;
+            }
+            
+            if (shouldReport) {
+                // 计算下载速度
+                long bytesDownloadedInInterval = downloadedBytes - lastReportBytes;
+                double speedBytesPerSecond = (double) bytesDownloadedInInterval / (timeElapsed / 1000.0);
+                String speedStr = formatSpeed(speedBytesPerSecond);
+                
+                if (totalSize > 0) {
+                    // 已知文件大小，显示百分比
+                    double progress = (double) downloadedBytes / totalSize * 100;
+                    String downloadedStr = formatFileSize(downloadedBytes);
+                    String totalStr = formatFileSize(totalSize);
+                    log.info("下载进度 - 任务ID: {}, 文件名: {}, 进度: {:.2f}% ({}/{}), 速度: {}", 
+                            taskId, fileName, String.format("%.2f", progress), downloadedStr, totalStr, speedStr);
+                } else {
+                    // 未知文件大小，只显示已下载大小和速度
+                    String downloadedStr = formatFileSize(downloadedBytes);
+                    log.info("下载进度 - 任务ID: {}, 文件名: {}, 已下载: {}, 速度: {}", 
+                            taskId, fileName, downloadedStr, speedStr);
+                }
+                
+                lastReportTime = currentTime;
+                lastReportBytes = downloadedBytes;
+            }
+        }
+        
+        outputStream.flush();
+        
+        // 下载完成，输出最终统计
+        if (totalSize > 0) {
+            double finalProgress = (double) downloadedBytes / totalSize * 100;
+            String downloadedStr = formatFileSize(downloadedBytes);
+            String totalStr = formatFileSize(totalSize);
+            log.info("下载完成 - 任务ID: {}, 文件名: {}, 最终进度: {}% ({}/{})", 
+                    taskId, fileName, String.format("%.2f", finalProgress), downloadedStr, totalStr);
+        } else {
+            String downloadedStr = formatFileSize(downloadedBytes);
+            log.info("下载完成 - 任务ID: {}, 文件名: {}, 总大小: {}", 
+                    taskId, fileName, downloadedStr);
+        }
+    }
+    
+    /**
+     * 格式化文件大小
+     * 
+     * @param bytes 字节数
+     * @return 格式化后的文件大小字符串
+     */
+    private static String formatFileSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.2f KB", bytes / 1024.0);
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+        } else {
+            return String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        }
+    }
+    
+    /**
+     * 格式化下载速度
+     * 
+     * @param bytesPerSecond 每秒字节数
+     * @return 格式化后的速度字符串
+     */
+    private static String formatSpeed(double bytesPerSecond) {
+        if (bytesPerSecond < 1024) {
+            return String.format("%.2f B/s", bytesPerSecond);
+        } else if (bytesPerSecond < 1024 * 1024) {
+            return String.format("%.2f KB/s", bytesPerSecond / 1024.0);
+        } else if (bytesPerSecond < 1024 * 1024 * 1024) {
+            return String.format("%.2f MB/s", bytesPerSecond / (1024.0 * 1024.0));
+        } else {
+            return String.format("%.2f GB/s", bytesPerSecond / (1024.0 * 1024.0 * 1024.0));
+        }
     }
     
     /**
