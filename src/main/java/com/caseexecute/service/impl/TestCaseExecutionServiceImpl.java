@@ -9,7 +9,8 @@ import com.caseexecute.util.FileDownloadUtil;
 import com.caseexecute.util.HttpReportUtil;
 import com.caseexecute.util.PythonExecutorUtil;
 import com.caseexecute.util.TestCaseResultParser;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,9 +30,10 @@ import java.util.stream.Stream;
  * @author system
  * @since 2024-01-01
  */
-@Slf4j
 @Service
 public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestCaseExecutionServiceImpl.class);
 
     @Autowired
     private CaseExecutionConfig caseExecutionConfig;
@@ -82,9 +84,9 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                         if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
                             process.destroyForcibly();
                         }
-                        log.info("已终止进程 - 任务ID: {}", taskId);
+                        LOGGER.info("Process terminated - Task ID: {}", taskId);
                     } catch (Exception e) {
-                        log.error("终止进程失败 - 任务ID: {}, 错误: {}", taskId, e.getMessage());
+                        LOGGER.error("Failed to terminate process - Task ID: {}, Error: {}", taskId, e.getMessage());
                     }
                 }
             }
@@ -94,7 +96,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         public void cancelExecution() {
             if (executionFuture != null && !executionFuture.isDone()) {
                 executionFuture.cancel(true);
-                log.info("已取消任务执行 - 任务ID: {}", taskId);
+                LOGGER.info("Task execution cancelled - Task ID: {}", taskId);
             }
         }
         
@@ -107,7 +109,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
 
     @Override
     public void processTestCaseExecution(TestCaseExecutionRequest request) {
-        log.info("开始处理用例执行任务 - 任务ID: {}", request.getTaskId());
+        LOGGER.info("Starting test case execution task - Task ID: {}", request.getTaskId());
         
         // 记录UE信息和采集策略信息
         logTaskContextInfo(request);
@@ -115,7 +117,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         // 先创建任务执行信息并存储，确保在异步执行开始前就可用
         TaskExecutionInfo taskInfo = new TaskExecutionInfo(request.getTaskId(), null);
         runningTasks.put(request.getTaskId(), taskInfo);
-        log.info("任务已添加到运行列表 - 任务ID: {}", request.getTaskId());
+        LOGGER.info("Task added to running list - Task ID: {}", request.getTaskId());
         
         // 异步执行，避免阻塞接口响应
         CompletableFuture<Void> executionFuture = CompletableFuture.runAsync(() -> {
@@ -123,111 +125,126 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             Path extractPath = null;
             
             try {
-                log.info("开始下载用例集文件 - 任务ID: {}, URL: {}", request.getTaskId(), request.getTestCaseSetPath());
+                LOGGER.info("Starting to download test case set file - Task ID: {}, URL: {}", request.getTaskId(), request.getTestCaseSetPath());
                 
                 // 1. 下载用例集文件到/opt目录下的taskId子目录
                 zipFilePath = FileDownloadUtil.downloadFile(request.getTestCaseSetPath(), request.getTaskId());
-                log.info("用例集文件下载完成 - 任务ID: {}, 文件路径: {}", request.getTaskId(), zipFilePath);
+                LOGGER.info("Test case set file download completed - Task ID: {}, File path: {}", request.getTaskId(), zipFilePath);
                 
                 // 2. 解压用例集到/opt目录下的taskId子目录
-                log.info("开始解压用例集文件 - 任务ID: {}, 文件路径: {}", request.getTaskId(), zipFilePath);
+                LOGGER.info("Starting to extract test case set file - Task ID: {}, File path: {}", request.getTaskId(), zipFilePath);
                 extractPath = FileDownloadUtil.extractZipFile(zipFilePath, request.getTaskId());
-                log.info("用例集文件解压完成 - 任务ID: {}, 解压路径: {}", request.getTaskId(), extractPath);
+                LOGGER.info("Test case set file extraction completed - Task ID: {}, Extract path: {}", request.getTaskId(), extractPath);
                 
                 // 3. 执行用例列表
-                log.info("开始执行用例列表 - 任务ID: {}, 用例数量: {}", request.getTaskId(), request.getTestCaseList().size());
+                LOGGER.info("Starting to execute test case list - Task ID: {}, Test case count: {}", request.getTaskId(), request.getTestCaseList().size());
                 executeTestCaseList(request, extractPath);
                 
-                log.info("用例执行任务处理完成 - 任务ID: {}", request.getTaskId());
+                LOGGER.info("Test case execution task processing completed - Task ID: {}", request.getTaskId());
                 
             } catch (Exception e) {
-                log.error("用例执行任务处理失败 - 任务ID: {}, 错误: {}", request.getTaskId(), e.getMessage(), e);
+                LOGGER.error("Test case execution task processing failed - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
             } finally {
                 // 4. 清理任务目录
-                log.info("开始清理任务目录 - 任务ID: {}", request.getTaskId());
+                LOGGER.info("Starting to cleanup task directory - Task ID: {}", request.getTaskId());
                 try {
                     FileDownloadUtil.cleanupTaskDirectory(request.getTaskId());
-                    log.info("任务目录已清理 - 任务ID: {}", request.getTaskId());
+                    LOGGER.info("Task directory cleaned up - Task ID: {}", request.getTaskId());
                 } catch (Exception e) {
-                    log.warn("清理任务目录失败 - 任务ID: {}, 错误: {}", request.getTaskId(), e.getMessage());
+                    LOGGER.warn("Failed to cleanup task directory - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage());
                 }
-                log.info("任务目录清理完成 - 任务ID: {}", request.getTaskId());
+                LOGGER.info("Task directory cleanup completed - Task ID: {}", request.getTaskId());
                 
                 // 5. 从运行任务列表中移除
                 runningTasks.remove(request.getTaskId());
-                log.info("任务已从运行列表中移除 - 任务ID: {}", request.getTaskId());
+                LOGGER.info("Task removed from running list - Task ID: {}", request.getTaskId());
             }
         });
         
         // 更新任务执行信息中的Future
         taskInfo.setExecutionFuture(executionFuture);
-        log.info("任务执行Future已设置 - 任务ID: {}", request.getTaskId());
+        LOGGER.info("Task execution Future set - Task ID: {}", request.getTaskId());
     }
     
     /**
      * 执行用例列表
      */
     private void executeTestCaseList(TestCaseExecutionRequest request, Path extractPath) {
-        log.info("开始执行用例列表 - 用例数量: {}", request.getTestCaseList().size());
+        LOGGER.info("Starting to execute test case list - Test case count: {}", request.getTestCaseList().size());
         
         int successCount = 0;
         int failedCount = 0;
         int cancelledCount = 0;
         
         for (TestCaseExecutionRequest.TestCaseInfo testCase : request.getTestCaseList()) {
-            // 检查任务是否已被取消
-            TaskExecutionInfo taskInfo = runningTasks.get(request.getTaskId());
-            if (taskInfo == null) {
-                log.warn("任务已被取消，停止执行剩余用例 - 任务ID: {}", request.getTaskId());
+            if (isTaskCancelled(request, testCase)) {
                 cancelledCount++;
-                // 上报被取消的用例状态
-                try {
-                    reportTestCaseResult(request, testCase, "BLOCKED", "用例执行被取消", 0L, null, null, "任务被用户取消", null);
-                } catch (Exception reportException) {
-                    log.error("上报用例取消状态失败 - 用例ID: {}, 错误: {}", testCase.getTestCaseId(), reportException.getMessage());
-                }
-                continue;
-            }
-            
-            // 检查执行Future是否已被取消
-            if (taskInfo.getExecutionFuture() != null && taskInfo.getExecutionFuture().isCancelled()) {
-                log.warn("任务执行已被取消，停止执行剩余用例 - 任务ID: {}", request.getTaskId());
-                cancelledCount++;
-                // 上报被取消的用例状态
-                try {
-                    reportTestCaseResult(request, testCase, "BLOCKED", "用例执行被取消", 0L, null, null, "任务被用户取消", null);
-                } catch (Exception reportException) {
-                    log.error("上报用例取消状态失败 - 用例ID: {}, 错误: {}", testCase.getTestCaseId(), reportException.getMessage());
-                }
                 continue;
             }
             
             try {
-                log.info("开始执行用例 - 用例ID: {}, 用例编号: {}, 轮次: {}", 
+                LOGGER.info("Starting to execute test case - Test case ID: {}, Test case number: {}, Round: {}", 
                         testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
                 
                 executeSingleTestCase(request, testCase, extractPath);
                 successCount++;
                 
-                log.info("用例执行完成 - 用例ID: {}, 用例编号: {}, 轮次: {}", 
+                LOGGER.info("Test case execution completed - Test case ID: {}, Test case number: {}, Round: {}", 
                         testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
                 
             } catch (Exception e) {
                 failedCount++;
-                log.error("执行用例异常 - 用例ID: {}, 用例编号: {}, 轮次: {}, 错误: {}", 
-                        testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), e.getMessage(), e);
-                
-                // 对于未处理的异常，上报为FAILED状态
-                try {
-                    reportTestCaseResult(request, testCase, "FAILED", "执行异常: " + e.getMessage(), 0L, null, null, "执行异常: " + e.getMessage(), null);
-                } catch (Exception reportException) {
-                    log.error("上报用例执行结果失败 - 用例ID: {}, 错误: {}", testCase.getTestCaseId(), reportException.getMessage());
-                }
+                handleTestCaseExecutionException(request, testCase, e);
             }
         }
         
-        log.info("用例列表执行完成 - 成功: {}, 失败: {}, 取消: {}, 总计: {}", 
+        LOGGER.info("Test case list execution completed - Success: {}, Failed: {}, Cancelled: {}, Total: {}", 
                 successCount, failedCount, cancelledCount, request.getTestCaseList().size());
+    }
+    
+    /**
+     * 检查任务是否已被取消
+     */
+    private boolean isTaskCancelled(TestCaseExecutionRequest request, TestCaseExecutionRequest.TestCaseInfo testCase) {
+        TaskExecutionInfo taskInfo = runningTasks.get(request.getTaskId());
+        if (taskInfo == null) {
+            LOGGER.warn("Task has been cancelled, stopping execution of remaining test cases - Task ID: {}", request.getTaskId());
+            reportCancelledTestCase(request, testCase);
+            return true;
+        }
+        
+        if (taskInfo.getExecutionFuture() != null && taskInfo.getExecutionFuture().isCancelled()) {
+            LOGGER.warn("Task execution has been cancelled, stopping execution of remaining test cases - Task ID: {}", request.getTaskId());
+            reportCancelledTestCase(request, testCase);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 上报被取消的用例状态
+     */
+    private void reportCancelledTestCase(TestCaseExecutionRequest request, TestCaseExecutionRequest.TestCaseInfo testCase) {
+        try {
+            reportTestCaseResult(request, testCase, "BLOCKED", "Test case execution cancelled", 0L, null, null, "Task cancelled by user", null);
+        } catch (Exception reportException) {
+            LOGGER.error("Failed to report cancelled test case status - Test case ID: {}, Error: {}", testCase.getTestCaseId(), reportException.getMessage());
+        }
+    }
+    
+    /**
+     * 处理用例执行异常
+     */
+    private void handleTestCaseExecutionException(TestCaseExecutionRequest request, TestCaseExecutionRequest.TestCaseInfo testCase, Exception e) {
+        LOGGER.error("Test case execution exception - Test case ID: {}, Test case number: {}, Round: {}, Error: {}", 
+                testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), e.getMessage(), e);
+        
+        try {
+            reportTestCaseResult(request, testCase, "FAILED", "Execution exception: " + e.getMessage(), 0L, null, null, "Execution exception: " + e.getMessage(), null);
+        } catch (Exception reportException) {
+            LOGGER.error("Failed to report test case execution result - Test case ID: {}, Error: {}", testCase.getTestCaseId(), reportException.getMessage());
+        }
     }
     
     /**
@@ -237,63 +254,58 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         String testCaseNumber = testCase.getTestCaseNumber();
         Long testCaseId = testCase.getTestCaseId();
         
-        // 1. 优先尝试精确匹配用例编号
         if (testCaseNumber != null && !testCaseNumber.trim().isEmpty()) {
             Path scriptPath = extractPath.resolve("scripts").resolve(testCaseNumber + ".py");
             if (java.nio.file.Files.exists(scriptPath)) {
-                log.info("找到精确匹配的脚本文件: {}", scriptPath);
+                LOGGER.info("Found exact match script file: {}", scriptPath);
                 return scriptPath;
             }
             
-            // 尝试cases目录
             scriptPath = extractPath.resolve("cases").resolve(testCaseNumber + ".py");
             if (java.nio.file.Files.exists(scriptPath)) {
-                log.info("找到精确匹配的脚本文件: {}", scriptPath);
+                LOGGER.info("Found exact match script file: {}", scriptPath);
                 return scriptPath;
             }
         }
         
-        // 2. 尝试用例ID
         Path scriptPath = extractPath.resolve("scripts").resolve(testCaseId + ".py");
         if (java.nio.file.Files.exists(scriptPath)) {
-            log.info("找到用例ID匹配的脚本文件: {}", scriptPath);
+            LOGGER.info("Found test case ID match script file: {}", scriptPath);
             return scriptPath;
         }
         
         scriptPath = extractPath.resolve("cases").resolve(testCaseId + ".py");
         if (java.nio.file.Files.exists(scriptPath)) {
-            log.info("找到用例ID匹配的脚本文件: {}", scriptPath);
+            LOGGER.info("Found test case ID match script file: {}", scriptPath);
             return scriptPath;
         }
         
-        // 3. 智能匹配：根据用例编号映射到可能的脚本文件名
         if (testCaseNumber != null && !testCaseNumber.trim().isEmpty()) {
             String[] possibleScriptNames = getPossibleScriptNames(testCaseNumber);
             for (String scriptName : possibleScriptNames) {
                 scriptPath = extractPath.resolve("scripts").resolve(scriptName);
                 if (java.nio.file.Files.exists(scriptPath)) {
-                    log.info("找到智能匹配的脚本文件: {} -> {}", testCaseNumber, scriptPath);
+                    LOGGER.info("Found intelligent match script file: {} -> {}", testCaseNumber, scriptPath);
                     return scriptPath;
                 }
                 
                 scriptPath = extractPath.resolve("cases").resolve(scriptName);
                 if (java.nio.file.Files.exists(scriptPath)) {
-                    log.info("找到智能匹配的脚本文件: {} -> {}", testCaseNumber, scriptPath);
+                    LOGGER.info("Found intelligent match script file: {} -> {}", testCaseNumber, scriptPath);
                     return scriptPath;
                 }
             }
         }
         
-        // 4. 如果都找不到，返回第一个可用的Python脚本
         try {
             java.nio.file.Files.walk(extractPath)
                 .filter(path -> path.toString().endsWith(".py"))
                 .findFirst()
                 .ifPresent(path -> {
-                    log.warn("未找到匹配的脚本文件，使用第一个可用的Python脚本: {} -> {}", testCaseNumber, path);
+                    LOGGER.warn("No matching script file found, using first available Python script: {} -> {}", testCaseNumber, path);
                 });
         } catch (Exception e) {
-            log.error("搜索Python脚本文件时出错: {}", e.getMessage());
+            LOGGER.error("Error occurred while searching for Python script file: {}", e.getMessage());
         }
         
         return null;
@@ -333,140 +345,187 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     private void executeSingleTestCase(TestCaseExecutionRequest request, 
                                      TestCaseExecutionRequest.TestCaseInfo testCase, 
                                      Path extractPath) throws Exception {
-        log.info("开始执行用例 - 用例ID: {}, 用例编号: {}, 轮次: {}", 
+        LOGGER.info("Starting to execute test case - Test case ID: {}, Test case number: {}, Round: {}", 
                 testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
         
-        // 查找用例脚本文件 - 在scripts目录中查找，只使用用例编号
-        if (testCase.getTestCaseNumber() == null || testCase.getTestCaseNumber().trim().isEmpty()) {
-            String failureReason = "用例编号为空，无法查找脚本文件";
-            log.error("用例编号为空 - 用例ID: {}, 轮次: {}", testCase.getTestCaseId(), testCase.getRound());
-            reportTestCaseResult(request, testCase, "BLOCKED", "用例执行失败", 0L, null, null, failureReason, null);
+        Path scriptPath = findAndValidateScriptFile(request, testCase, extractPath);
+        if (scriptPath == null) {
             return;
+        }
+        
+        try {
+            executePythonScript(request, testCase, scriptPath);
+        } catch (Exception e) {
+            handlePythonExecutionException(request, testCase, e);
+        }
+    }
+    
+    /**
+     * 查找并验证脚本文件
+     */
+    private Path findAndValidateScriptFile(TestCaseExecutionRequest request, 
+                                          TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                          Path extractPath) {
+        if (testCase.getTestCaseNumber() == null || testCase.getTestCaseNumber().trim().isEmpty()) {
+            String failureReason = "Test case number is empty, cannot find script file";
+            LOGGER.error("Test case number is empty - Test case ID: {}, Round: {}", testCase.getTestCaseId(), testCase.getRound());
+            reportTestCaseResult(request, testCase, "BLOCKED", "Test case execution failed", 0L, null, null, failureReason, null);
+            return null;
         }
         
         String scriptFileName = testCase.getTestCaseNumber() + ".py";
         Path scriptsDir = extractPath.resolve("scripts");
-        
-        // 递归查找脚本文件
         Path scriptPath = findScriptFileRecursively(scriptsDir, scriptFileName);
         
         if (scriptPath == null) {
-            String failureReason = "Python脚本文件不存在: 在scripts目录及其子目录中未找到 " + scriptFileName + " (用例编号: " + testCase.getTestCaseNumber() + ")";
-            
-            log.error("脚本文件不存在 - 用例ID: {}, 用例编号: {}, 轮次: {}, 错误: {}", 
+            String failureReason = "Python script file does not exist: " + scriptFileName + " not found in scripts directory and subdirectories (Test case number: " + testCase.getTestCaseNumber() + ")";
+            LOGGER.error("Script file does not exist - Test case ID: {}, Test case number: {}, Round: {}, Error: {}", 
                     testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), failureReason);
-            
-            // 上报Blocked状态和失败原因
-            reportTestCaseResult(request, testCase, "BLOCKED", "用例执行失败", 0L, null, null, failureReason, null);
-            return;
+            reportTestCaseResult(request, testCase, "BLOCKED", "Test case execution failed", 0L, null, null, failureReason, null);
+            return null;
         }
         
-        log.info("找到脚本文件 - 用例ID: {}, 用例编号: {}, 脚本路径: {}", 
+        LOGGER.info("Script file found - Test case ID: {}, Test case number: {}, Script path: {}", 
                 testCase.getTestCaseId(), testCase.getTestCaseNumber(), scriptPath);
+        return scriptPath;
+    }
+    
+    /**
+     * 执行Python脚本
+     */
+    private void executePythonScript(TestCaseExecutionRequest request, 
+                                    TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                    Path scriptPath) throws Exception {
+        Integer timeoutMinutes = caseExecutionConfig.getTimeoutMinutes();
+        LOGGER.info("Executing test case with configured timeout - Test case ID: {}, Test case number: {}, Round: {}, Timeout: {} minutes", 
+                testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), timeoutMinutes);
         
-        try {
-            // 执行Python脚本，使用配置的超时时间
-            Integer timeoutMinutes = caseExecutionConfig.getTimeoutMinutes();
-            log.info("使用配置的超时时间执行用例 - 用例ID: {}, 用例编号: {}, 轮次: {}, 超时时间: {}分钟", 
-                    testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), timeoutMinutes);
-            
-            // 获取当前任务的执行信息
-            TaskExecutionInfo taskInfo = runningTasks.get(request.getTaskId());
-            if (taskInfo == null) {
-                log.warn("任务执行信息不存在，无法管理进程 - 任务ID: {}", request.getTaskId());
-            }
-            
-            // 启动Python进程并添加到任务管理
-            Process process = PythonExecutorUtil.startPythonProcess(scriptPath, testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), request.getLogReportUrl(), request.getTaskId(), request.getExecutorIp(), request.getCollectStrategyInfo(), request.getUeList(), request.getTaskCustomParams());
-            
-            if (taskInfo != null) {
-                taskInfo.addProcess(process);
-                log.info("Python进程已添加到任务管理 - 任务ID: {}, 用例ID: {}, 轮次: {}", 
-                        request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
-            }
-            
-            // 等待进程完成，使用配置的超时时间，同时检查任务是否被取消
-            boolean completed = false;
-            long startTime = System.currentTimeMillis();
-            long timeoutMillis = timeoutMinutes * 60 * 1000L;
-            
-            while (!completed && (System.currentTimeMillis() - startTime) < timeoutMillis) {
-                // 检查任务是否被取消
-                if (taskInfo != null && taskInfo.getExecutionFuture() != null && taskInfo.getExecutionFuture().isCancelled()) {
-                    log.warn("任务已被取消，终止正在执行的用例 - 任务ID: {}, 用例ID: {}", 
-                            request.getTaskId(), testCase.getTestCaseId());
-                    // 强制终止进程
-                    if (process != null && process.isAlive()) {
-                        process.destroy();
-                        if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                            process.destroyForcibly();
-                        }
-                        log.info("已强制终止被取消任务的进程 - 任务ID: {}, 用例ID: {}", 
-                                request.getTaskId(), testCase.getTestCaseId());
-                    }
-                    // 上报取消状态
-                    reportTestCaseResult(request, testCase, "BLOCKED", "用例执行被取消", 
-                            System.currentTimeMillis() - startTime, null, null, "任务被用户取消", null);
-                    return;
-                }
-                
-                // 等待进程完成，每次检查间隔1秒
-                completed = process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
-            }
-            
-            // 从任务管理中移除进程
-            if (taskInfo != null) {
-                taskInfo.removeProcess(process);
-                log.info("Python进程已从任务管理移除 - 任务ID: {}, 用例ID: {}, 轮次: {}", 
-                        request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
-            }
-            
-            // 处理执行结果
-            PythonExecutorUtil.PythonExecutionResult executionResult = handleProcessResult(process, completed, scriptPath, testCase, timeoutMinutes, request);
-            
-            // 解析执行结果和失败原因
-            String status = executionResult.getStatus();
-            String result = executionResult.getResult();
-            String failureReason = executionResult.getFailureReason();
-            
-            // 根据执行结果进行详细分析
-            TestCaseAnalysis analysis = analyzeTestCaseResult(executionResult, testCase);
-            
-            // 上报解析后的执行结果
-            log.info("准备上报用例执行结果 - 用例ID: {}, 轮次: {}, 状态: {}, 结果: {}, 失败原因: {}", 
-                    testCase.getTestCaseId(), testCase.getRound(), analysis.getStatus(), analysis.getResult(), analysis.getFailureReason());
-            log.info("结果上报URL: {}", request.getResultReportUrl());
-            
-            reportTestCaseResult(request, testCase, analysis.getStatus(), analysis.getResult(), 
-                    executionResult.getExecutionTime(), executionResult.getStartTime(), executionResult.getEndTime(), analysis.getFailureReason(), executionResult.getLogFilePath());
-            
-            // // 上报执行日志
-            // log.info("准备上报用例执行日志 - 用例ID: {}, 轮次: {}, 日志文件路径: {}, 日志内容长度: {}", 
-            //         testCase.getTestCaseId(), testCase.getRound(), executionResult.getLogFilePath(), 
-            //         executionResult.getLogContent() != null ? executionResult.getLogContent().length() : 0);
-            // log.info("日志上报URL: {}", request.getLogReportUrl());
-            
-            // httpReportUtil.reportTestCaseLog(request.getLogReportUrl(), executionResult.getLogContent(), 
-            //         executionResult.getLogFilePath(), request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
-            
-        } catch (Exception e) {
-            String errorMessage = e.getMessage();
-            String failureReason;
-            
-            // 检查是否是Python执行器不可用的错误
-            if (errorMessage != null && errorMessage.contains("Cannot run program \"python\"") && errorMessage.contains("No such file or directory")) {
-                failureReason = "Python执行器不可用: 系统中未安装Python或Python不在PATH环境变量中";
-                log.error("Python执行器不可用 - 用例ID: {}, 用例编号: {}, 轮次: {}, 错误: {}", 
-                        testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), errorMessage);
-            } else {
-                failureReason = "Python脚本执行异常: " + errorMessage;
-                log.error("Python脚本执行异常 - 用例ID: {}, 用例编号: {}, 轮次: {}, 错误: {}", 
-                        testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), errorMessage);
-            }
-            
-            // 上报BLOCKED状态和错误原因
-            reportTestCaseResult(request, testCase, "BLOCKED", "用例执行失败", 0L, null, null, failureReason, null);
+        TaskExecutionInfo taskInfo = runningTasks.get(request.getTaskId());
+        if (taskInfo == null) {
+            LOGGER.warn("Task execution info does not exist, cannot manage process - Task ID: {}", request.getTaskId());
         }
+        
+        Process process = startPythonProcess(request, testCase, scriptPath, taskInfo);
+        boolean completed = waitForProcessCompletion(request, testCase, process, taskInfo, timeoutMinutes);
+        
+        if (taskInfo != null) {
+            taskInfo.removeProcess(process);
+            LOGGER.info("Python process removed from task management - Task ID: {}, Test case ID: {}, Round: {}", 
+                    request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
+        }
+        
+        processExecutionResult(request, testCase, process, completed, timeoutMinutes);
+    }
+    
+    /**
+     * 启动Python进程
+     */
+    private Process startPythonProcess(TestCaseExecutionRequest request, 
+                                      TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                      Path scriptPath, 
+                                      TaskExecutionInfo taskInfo) throws Exception {
+        Process process = PythonExecutorUtil.startPythonProcess(scriptPath, testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), request.getLogReportUrl(), request.getTaskId(), request.getExecutorIp(), request.getCollectStrategyInfo(), request.getUeList(), request.getTaskCustomParams());
+        
+        if (taskInfo != null) {
+            taskInfo.addProcess(process);
+            LOGGER.info("Python process added to task management - Task ID: {}, Test case ID: {}, Round: {}", 
+                    request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
+        }
+        
+        return process;
+    }
+    
+    /**
+     * 等待进程完成
+     */
+    private boolean waitForProcessCompletion(TestCaseExecutionRequest request, 
+                                            TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                            Process process, 
+                                            TaskExecutionInfo taskInfo, 
+                                            Integer timeoutMinutes) throws Exception {
+        boolean completed = false;
+        long startTime = System.currentTimeMillis();
+        long timeoutMillis = timeoutMinutes * 60 * 1000L;
+        
+        while (!completed && (System.currentTimeMillis() - startTime) < timeoutMillis) {
+            if (isTaskExecutionCancelled(request, testCase, taskInfo, process, startTime)) {
+                return false;
+            }
+            
+            completed = process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        
+        return completed;
+    }
+    
+    /**
+     * 检查任务执行是否被取消
+     */
+    private boolean isTaskExecutionCancelled(TestCaseExecutionRequest request, 
+                                           TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                           TaskExecutionInfo taskInfo, 
+                                           Process process, 
+                                           long startTime) throws Exception {
+        if (taskInfo != null && taskInfo.getExecutionFuture() != null && taskInfo.getExecutionFuture().isCancelled()) {
+            LOGGER.warn("Task has been cancelled, terminating executing test case - Task ID: {}, Test case ID: {}", 
+                    request.getTaskId(), testCase.getTestCaseId());
+            
+            if (process != null && process.isAlive()) {
+                process.destroy();
+                if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    process.destroyForcibly();
+                }
+                LOGGER.info("Process of cancelled task forcefully terminated - Task ID: {}, Test case ID: {}", 
+                        request.getTaskId(), testCase.getTestCaseId());
+            }
+            
+            reportTestCaseResult(request, testCase, "BLOCKED", "Test case execution cancelled", 
+                    System.currentTimeMillis() - startTime, null, null, "Task cancelled by user", null);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 处理执行结果
+     */
+    private void processExecutionResult(TestCaseExecutionRequest request, 
+                                       TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                       Process process, 
+                                       boolean completed, 
+                                       Integer timeoutMinutes) throws Exception {
+        PythonExecutorUtil.PythonExecutionResult executionResult = handleProcessResult(process, completed, null, testCase, timeoutMinutes, request);
+        TestCaseAnalysis analysis = analyzeTestCaseResult(executionResult, testCase);
+        
+        LOGGER.info("Preparing to report test case execution result - Test case ID: {}, Round: {}, Status: {}, Result: {}, Failure reason: {}", 
+                testCase.getTestCaseId(), testCase.getRound(), analysis.getStatus(), analysis.getResult(), analysis.getFailureReason());
+        LOGGER.info("Result report URL: {}", request.getResultReportUrl());
+        
+        reportTestCaseResult(request, testCase, analysis.getStatus(), analysis.getResult(), 
+                executionResult.getExecutionTime(), executionResult.getStartTime(), executionResult.getEndTime(), analysis.getFailureReason(), executionResult.getLogFilePath());
+    }
+    
+    /**
+     * 处理Python执行异常
+     */
+    private void handlePythonExecutionException(TestCaseExecutionRequest request, 
+                                               TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                               Exception e) {
+        String errorMessage = e.getMessage();
+        String failureReason;
+        
+        if (errorMessage != null && errorMessage.contains("Cannot run program \"python\"") && errorMessage.contains("No such file or directory")) {
+            failureReason = "Python executor unavailable: Python is not installed in the system or not in PATH environment variable";
+            LOGGER.error("Python executor unavailable - Test case ID: {}, Test case number: {}, Round: {}, Error: {}", 
+                    testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), errorMessage);
+        } else {
+            failureReason = "Python script execution exception: " + errorMessage;
+            LOGGER.error("Python script execution exception - Test case ID: {}, Test case number: {}, Round: {}, Error: {}", 
+                    testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), errorMessage);
+        }
+        
+        reportTestCaseResult(request, testCase, "BLOCKED", "Test case execution failed", 0L, null, null, failureReason, null);
     }
     
     /**
@@ -483,61 +542,89 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         String failureReason = executionResult.getFailureReason();
         String logContent = executionResult.getLogContent();
         
-        // 使用智能解析工具分析结果
         TestCaseResultParser.TestCaseParseResult parseResult = TestCaseResultParser.parseResult(logContent);
         
-        // 如果解析工具能够识别出结果，使用解析结果
         if (!"BLOCKED".equals(parseResult.getStatus())) {
-            status = parseResult.getStatus();
-            result = parseResult.getResultMessage();
-            
-            // 构建详细的失败原因
-            if (parseResult.getFailureDetails() != null) {
-                failureReason = parseResult.getFailureDetails();
-            } else if (parseResult.getFailedTests() > 0 || parseResult.getErrorTests() > 0) {
-                failureReason = String.format("测试统计: 总测试数=%d, 成功=%d, 失败=%d, 错误=%d, 成功率=%.1f%%", 
-                        parseResult.getTotalTests(), parseResult.getSuccessTests(), 
-                        parseResult.getFailedTests(), parseResult.getErrorTests(), parseResult.getSuccessRate());
-            }
+            return buildAnalysisFromParseResult(parseResult, result);
         } else {
-            // 降级到原有的分析逻辑
-            if ("SUCCESS".equals(status)) {
-                // 检查是否真的成功
-                if (logContent.contains("case failed")) {
-                    status = "FAILED";
-                    result = "用例执行失败";
-                    failureReason = "日志分析发现失败信息: " + extractFailureDetails(logContent);
-                } else if (logContent.contains("case success")) {
-                    status = "SUCCESS";
-                    result = "用例执行成功";
-                    failureReason = null;
-                } else {
-                    // 没有明确的成功或失败标识
-                    status = "BLOCKED";
-                    result = "用例执行被阻塞";
-                    failureReason = "用例执行被阻塞: 日志中未包含明确的成功或失败标识，可能由于环境问题或脚本异常导致";
-                }
-            } else if ("FAILED".equals(status)) {
-                // 分析失败原因
-                failureReason = analyzeDetailedFailureReason(logContent, failureReason);
-            } else if ("BLOCKED".equals(status)) {
-                // 阻塞状态的处理 - 提供更具体的阻塞原因
-                failureReason = analyzeDetailedFailureReason(logContent, failureReason);
-            }
+            return buildAnalysisFromFallbackLogic(status, result, failureReason, logContent, parseResult);
+        }
+    }
+    
+    /**
+     * 从解析结果构建分析结果
+     */
+    private TestCaseAnalysis buildAnalysisFromParseResult(TestCaseResultParser.TestCaseParseResult parseResult, String originalResult) {
+        String status = parseResult.getStatus();
+        String result = parseResult.getResultMessage();
+        String failureReason = buildFailureReasonFromParseResult(parseResult);
+        result = addPerformanceMetrics(result, parseResult);
+        return new TestCaseAnalysis(status, result, failureReason);
+    }
+    
+    /**
+     * 从解析结果构建失败原因
+     */
+    private String buildFailureReasonFromParseResult(TestCaseResultParser.TestCaseParseResult parseResult) {
+        if (parseResult.getFailureDetails() != null) {
+            return parseResult.getFailureDetails();
         }
         
-        // 添加性能指标信息
+        if (parseResult.getFailedTests() > 0 || parseResult.getErrorTests() > 0) {
+            return String.format("Test statistics: Total=%d, Success=%d, Failed=%d, Error=%d, Success rate=%.1f%%", 
+                    parseResult.getTotalTests(), parseResult.getSuccessTests(), 
+                    parseResult.getFailedTests(), parseResult.getErrorTests(), parseResult.getSuccessRate());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 添加性能指标信息
+     */
+    private String addPerformanceMetrics(String result, TestCaseResultParser.TestCaseParseResult parseResult) {
         if (parseResult.getNetworkLatency() != null) {
-            result += String.format(" (网络延迟: %.2fms)", parseResult.getNetworkLatency());
+            result += String.format(" (Network latency: %.2fms)", parseResult.getNetworkLatency());
         }
         if (parseResult.getBandwidth() != null) {
-            result += String.format(" (带宽: %.2f%s)", parseResult.getBandwidth(), parseResult.getBandwidthUnit());
+            result += String.format(" (Bandwidth: %.2f%s)", parseResult.getBandwidth(), parseResult.getBandwidthUnit());
         }
         if (parseResult.getSignalStrength() != null) {
-            result += String.format(" (信号强度: %.2fdBm)", parseResult.getSignalStrength());
+            result += String.format(" (Signal strength: %.2fdBm)", parseResult.getSignalStrength());
+        }
+        return result;
+    }
+    
+    /**
+     * 使用降级逻辑构建分析结果
+     */
+    private TestCaseAnalysis buildAnalysisFromFallbackLogic(String status, String result, String failureReason, 
+                                                           String logContent, TestCaseResultParser.TestCaseParseResult parseResult) {
+        if ("SUCCESS".equals(status)) {
+            return analyzeSuccessStatus(logContent);
+        } else if ("FAILED".equals(status)) {
+            failureReason = analyzeDetailedFailureReason(logContent, failureReason);
+        } else if ("BLOCKED".equals(status)) {
+            failureReason = analyzeDetailedFailureReason(logContent, failureReason);
         }
         
+        result = addPerformanceMetrics(result, parseResult);
         return new TestCaseAnalysis(status, result, failureReason);
+    }
+    
+    /**
+     * 分析成功状态
+     */
+    private TestCaseAnalysis analyzeSuccessStatus(String logContent) {
+        if (logContent.contains("case failed")) {
+            String failureReason = "Log analysis found failure information: " + extractFailureDetails(logContent);
+            return new TestCaseAnalysis("FAILED", "Test case execution failed", failureReason);
+        } else if (logContent.contains("case success")) {
+            return new TestCaseAnalysis("SUCCESS", "Test case execution succeeded", null);
+        } else {
+            String failureReason = "Test case execution blocked: Log does not contain clear success or failure identifier, may be caused by environment issues or script exceptions";
+            return new TestCaseAnalysis("BLOCKED", "Test case execution blocked", failureReason);
+        }
     }
     
     /**
@@ -547,7 +634,6 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      * @return 失败详情
      */
     private String extractFailureDetails(String logContent) {
-        // 提取失败的具体信息
         String[] lines = logContent.split("\n");
         StringBuilder failureDetails = new StringBuilder();
         
@@ -558,7 +644,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             }
         }
         
-        return failureDetails.length() > 0 ? failureDetails.toString() : "阻塞失败原因";
+        return failureDetails.length() > 0 ? failureDetails.toString() : "Blocked failure reason";
     }
     
     /**
@@ -570,25 +656,25 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private String analyzeDetailedFailureReason(String logContent, String originalReason) {
         if (logContent.contains("网络连接失败") || logContent.contains("Connection refused")) {
-            return "网络连接失败: 无法连接到目标服务器，请检查网络配置和服务器状态";
+            return "Network connection failed: Cannot connect to target server, please check network configuration and server status";
         } else if (logContent.contains("超时") || logContent.contains("timeout")) {
-            return "网络请求超时: 服务器响应时间过长，请检查网络连接和服务器负载";
+            return "Network request timeout: Server response time is too long, please check network connection and server load";
         } else if (logContent.contains("DNS解析失败") || logContent.contains("Name or service not known")) {
-            return "DNS解析失败: 无法解析域名，请检查DNS配置和网络连接";
+            return "DNS resolution failed: Cannot resolve domain name, please check DNS configuration and network connection";
         } else if (logContent.contains("权限不足") || logContent.contains("Permission denied")) {
-            return "权限不足: 无法访问所需资源，请检查文件权限和用户权限设置";
+            return "Insufficient permissions: Cannot access required resources, please check file permissions and user permission settings";
         } else if (logContent.contains("文件不存在") || logContent.contains("No such file")) {
-            return "文件不存在: 无法找到所需的文件或目录，请检查文件路径和文件是否存在";
+            return "File does not exist: Cannot find required file or directory, please check file path and file existence";
         } else if (logContent.contains("模块导入失败") || logContent.contains("ImportError")) {
-            return "模块导入失败: Python依赖包缺失，请检查Python环境和依赖包安装";
+            return "Module import failed: Python dependency package missing, please check Python environment and dependency package installation";
         } else if (logContent.contains("内存不足") || logContent.contains("out of memory")) {
-            return "内存不足: 系统内存不足，无法执行用例，请检查系统资源";
+            return "Insufficient memory: System memory is insufficient, cannot execute test case, please check system resources";
         } else if (logContent.contains("磁盘空间不足") || logContent.contains("no space left")) {
-            return "磁盘空间不足: 系统磁盘空间不足，无法写入文件，请清理磁盘空间";
+            return "Insufficient disk space: System disk space is insufficient, cannot write files, please clean up disk space";
         } else if (logContent.contains("Python执行器不可用")) {
-            return "Python执行器不可用: 系统中未安装Python或Python不在PATH环境变量中，请检查Python安装";
+            return "Python executor unavailable: Python is not installed in the system or not in PATH environment variable, please check Python installation";
         } else {
-            return originalReason != null ? originalReason : "用例执行被阻塞: 未知原因导致执行失败";
+            return originalReason != null ? originalReason : "Test case execution blocked: Unknown reason caused execution failure";
         }
     }
     
@@ -636,7 +722,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                                     java.time.LocalDateTime endTime,
                                     String failureReason,
                                     String logFilePath) {
-        log.info("构建用例执行结果报告 - 用例ID: {}, 轮次: {}, 状态: {}, 结果: {}, 日志文件: {}", 
+        LOGGER.info("Building test case execution result report - Test case ID: {}, Round: {}, Status: {}, Result: {}, Log file: {}", 
                 testCase.getTestCaseId(), testCase.getRound(), status, result, logFilePath);
         
         TestCaseResultReport report = new TestCaseResultReport();
@@ -654,11 +740,11 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         
         if ("FAILED".equals(status) || "BLOCKED".equals(status)) {
             report.setFailureReason(failureReason != null ? failureReason : result);
-            log.info("设置失败原因 - 用例ID: {}, 轮次: {}, 失败原因: {}", 
+            LOGGER.info("Setting failure reason - Test case ID: {}, Round: {}, Failure reason: {}", 
                     testCase.getTestCaseId(), testCase.getRound(), report.getFailureReason());
         }
         
-        log.info("用例执行结果报告构建完成 - 用例ID: {}, 轮次: {}, 任务ID: {}, 执行机IP: {}, 日志文件: {}", 
+        LOGGER.info("Test case execution result report built - Test case ID: {}, Round: {}, Task ID: {}, Executor IP: {}, Log file: {}", 
                 testCase.getTestCaseId(), testCase.getRound(), request.getTaskId(), request.getExecutorIp(), logFilePath);
         
         httpReportUtil.reportTestCaseResult(request.getResultReportUrl(), report);
@@ -680,33 +766,27 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     
     @Override
     public boolean cancelTaskExecution(String taskId) {
-        log.info("开始取消任务执行 - 任务ID: {}", taskId);
+        LOGGER.info("Starting to cancel task execution - Task ID: {}", taskId);
         
         TaskExecutionInfo taskInfo = runningTasks.get(taskId);
         if (taskInfo == null) {
-            log.warn("任务不存在或已完成 - 任务ID: {}", taskId);
+            LOGGER.warn("Task does not exist or has been completed - Task ID: {}", taskId);
             return false;
         }
         
         try {
-            // 1. 使用PythonExecutorUtil终止所有相关的Python进程及其子进程
-            log.info("开始终止任务ID为 {} 的所有Python进程", taskId);
+            LOGGER.info("Starting to terminate all Python processes for task ID: {}", taskId);
             PythonExecutorUtil.terminateAllPythonProcessesByTaskId(taskId);
             
-            // 2. 取消所有相关进程（Java层面的进程管理）
             taskInfo.cancelAllProcesses();
-            
-            // 3. 取消执行Future
             taskInfo.cancelExecution();
-            
-            // 4. 从运行任务列表中移除
             runningTasks.remove(taskId);
             
-            log.info("任务取消成功 - 任务ID: {}", taskId);
+            LOGGER.info("Task cancellation succeeded - Task ID: {}", taskId);
             return true;
             
         } catch (Exception e) {
-            log.error("取消任务失败 - 任务ID: {}, 错误: {}", taskId, e.getMessage(), e);
+            LOGGER.error("Task cancellation failed - Task ID: {}, Error: {}", taskId, e.getMessage(), e);
             return false;
         }
     }
@@ -720,7 +800,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private Path findScriptFileRecursively(Path scriptsDir, String scriptFileName) {
         if (!Files.exists(scriptsDir) || !Files.isDirectory(scriptsDir)) {
-            log.warn("scripts目录不存在或不是目录: {}", scriptsDir);
+            LOGGER.warn("scripts directory does not exist or is not a directory: {}", scriptsDir);
             return null;
         }
         
@@ -731,7 +811,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                     .findFirst()
                     .orElse(null);
         } catch (Exception e) {
-            log.error("递归查找脚本文件时发生错误 - 目录: {}, 文件名: {}, 错误: {}", 
+            LOGGER.error("Error occurred while recursively searching for script file - Directory: {}, File name: {}, Error: {}", 
                     scriptsDir, scriptFileName, e.getMessage());
             return null;
         }
@@ -752,123 +832,180 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                                                                         Path scriptPath, TestCaseExecutionRequest.TestCaseInfo testCase, 
                                                                         Integer timeoutMinutes, TestCaseExecutionRequest request) {
         try {
-            // 读取日志文件
-            String rootDir = fileStorageConfig != null ? fileStorageConfig.getRootDirectory() : System.getProperty("java.io.tmpdir");
-            Path rootDirectory = java.nio.file.Paths.get(rootDir);
-            Path taskDir = rootDirectory.resolve(request.getTaskId());
-            Path logsDir = taskDir.resolve("logs");
+            Path logFilePath = getLogFilePath(request, testCase);
+            String logContent = readLogContent(logFilePath);
+            ExecutionResultInfo resultInfo = determineExecutionResult(process, completed, logContent, timeoutMinutes, testCase);
+            String uploadedLogUrl = uploadLogFileIfNeeded(request, testCase, logFilePath, logFilePath.getFileName().toString());
             
-            String logFileName;
-            if (testCase.getTestCaseNumber() != null && !testCase.getTestCaseNumber().trim().isEmpty()) {
-                logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
-            } else {
-                logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
-            }
-            Path logFilePath = logsDir.resolve(logFileName);
-            
-            String logContent = "";
-            if (Files.exists(logFilePath)) {
-                logContent = new String(Files.readAllBytes(logFilePath), java.nio.charset.StandardCharsets.UTF_8);
-            }
-            
-            // 判断执行结果
-            String status = "SUCCESS";
-            String result = "用例执行成功";
-            String failureReason = null;
-            
-            if (!completed) {
-                status = "FAILED";  // 超时归类为FAILED
-                result = "用例执行超时";
-                failureReason = "用例执行超时: 超过配置的超时时间 " + timeoutMinutes + " 分钟";
-                
-                // 强制终止进程及其子进程
-                terminateProcessAndChildren(process);
-                
-                log.error("用例执行超时 - 用例ID: {}, 轮次: {}, 超时时间: {}分钟", 
-                        testCase.getTestCaseId(), testCase.getRound(), timeoutMinutes);
-            } else if (process.exitValue() != 0) {
-                // 检查是否是环境问题导致的阻塞
-                if (isBlockedByEnvironment(logContent)) {
-                    status = "BLOCKED";
-                    result = "用例执行被阻塞（环境问题）";
-                    failureReason = "环境问题导致用例无法执行: " + analyzeFailureReason(logContent, process.exitValue());
-                } else {
-                    status = "FAILED";
-                    result = "用例执行失败，退出码: " + process.exitValue();
-                    failureReason = analyzeFailureReason(logContent, process.exitValue());
-                }
-            } else {
-                // 根据控制台输出判断结果
-                TestResultAnalysis analysis = analyzeTestOutput(logContent);
-                status = analysis.getStatus();
-                result = analysis.getResult();
-                failureReason = analysis.getFailureReason();
-            }
-            
-            // 上传日志文件到gohttpserver（如果提供了gohttpserver地址）
-            String uploadedLogUrl = null;
-            if (request.getLogReportUrl() != null && !request.getLogReportUrl().trim().isEmpty()) {
-                try {
-                    // 诊断日志文件路径问题
-                    LogUploadDiagnosticTool.diagnoseLogFilePath(logFilePath.toString(), request.getTaskId(), 
-                            testCase.getTestCaseId(), testCase.getRound());
-                    
-                    // 诊断gohttpserver连接
-                    LogUploadDiagnosticTool.diagnoseGoHttpServer(request.getLogReportUrl(), request.getTaskId());
-                    
-                    // 验证日志文件是否存在
-                    if (!Files.exists(logFilePath)) {
-                        log.warn("日志文件不存在，跳过上传 - 用例ID: {}, 轮次: {}, 文件路径: {}", 
-                                testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
-                    } else {
-                        // 验证文件大小
-                        long fileSize = Files.size(logFilePath);
-                        if (fileSize == 0) {
-                            log.warn("日志文件为空，跳过上传 - 用例ID: {}, 轮次: {}, 文件路径: {}", 
-                                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
-                        } else {
-                            log.info("准备上传日志文件 - 用例ID: {}, 轮次: {}, 文件路径: {}, 文件大小: {} bytes", 
-                                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), fileSize);
-                            
-                            com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
-                            uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
-                            log.info("日志文件上传成功 - 用例ID: {}, 轮次: {}, 上传URL: {}", testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("日志文件上传失败 - 用例ID: {}, 轮次: {}, 文件路径: {}, 错误: {}", 
-                            testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), e.getMessage(), e);
-                }
-            } else {
-                log.info("未提供gohttpserver地址，跳过日志文件上传 - 用例ID: {}, 轮次: {}", testCase.getTestCaseId(), testCase.getRound());
-            }
-            
-            return PythonExecutorUtil.PythonExecutionResult.builder()
-                    .status(status)
-                    .result(result)
-                    .executionTime(System.currentTimeMillis() - System.currentTimeMillis()) // 简化处理
-                    .startTime(java.time.LocalDateTime.now()) // 简化处理
-                    .endTime(java.time.LocalDateTime.now()) // 简化处理
-                    .logContent(logContent)
-                    .logFilePath(uploadedLogUrl != null ? uploadedLogUrl : logFileName)
-                    .failureReason(failureReason)
-                    .build();
-                    
+            return buildPythonExecutionResult(resultInfo, logContent, uploadedLogUrl, logFilePath.getFileName().toString());
         } catch (Exception e) {
-            log.error("处理进程执行结果时发生错误 - 用例ID: {}, 轮次: {}, 错误: {}", 
+            LOGGER.error("Error occurred while processing process execution result - Test case ID: {}, Round: {}, Error: {}", 
                     testCase.getTestCaseId(), testCase.getRound(), e.getMessage());
             
             return PythonExecutorUtil.PythonExecutionResult.builder()
                     .status("BLOCKED")
-                    .result("用例执行失败")
+                    .result("Test case execution failed")
                     .executionTime(0L)
                     .startTime(java.time.LocalDateTime.now())
                     .endTime(java.time.LocalDateTime.now())
                     .logContent("")
                     .logFilePath("")
-                    .failureReason("处理执行结果时发生错误: " + e.getMessage())
+                    .failureReason("Error occurred while processing execution result: " + e.getMessage())
                     .build();
         }
+    }
+    
+    /**
+     * 获取日志文件路径
+     */
+    private Path getLogFilePath(TestCaseExecutionRequest request, TestCaseExecutionRequest.TestCaseInfo testCase) {
+        String rootDir = fileStorageConfig != null ? fileStorageConfig.getRootDirectory() : System.getProperty("java.io.tmpdir");
+        Path rootDirectory = java.nio.file.Paths.get(rootDir);
+        Path taskDir = rootDirectory.resolve(request.getTaskId());
+        Path logsDir = taskDir.resolve("logs");
+        
+        String logFileName;
+        if (testCase.getTestCaseNumber() != null && !testCase.getTestCaseNumber().trim().isEmpty()) {
+            logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
+        } else {
+            logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
+        }
+        return logsDir.resolve(logFileName);
+    }
+    
+    /**
+     * 读取日志内容
+     */
+    private String readLogContent(Path logFilePath) {
+        try {
+            if (Files.exists(logFilePath)) {
+                return new String(Files.readAllBytes(logFilePath), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } catch (java.io.IOException e) {
+            LOGGER.error("Failed to read log content from file: {}, Error: {}", logFilePath, e.getMessage());
+        }
+        return "";
+    }
+    
+    /**
+     * 确定执行结果
+     */
+    private ExecutionResultInfo determineExecutionResult(Process process, boolean completed, String logContent, 
+                                                         Integer timeoutMinutes, TestCaseExecutionRequest.TestCaseInfo testCase) {
+        if (!completed) {
+            terminateProcessAndChildren(process);
+            LOGGER.error("Test case execution timeout - Test case ID: {}, Round: {}, Timeout: {} minutes", 
+                    testCase.getTestCaseId(), testCase.getRound(), timeoutMinutes);
+            return new ExecutionResultInfo("FAILED", "Test case execution timeout", 
+                    "Test case execution timeout: Exceeded configured timeout " + timeoutMinutes + " minutes");
+        }
+        
+        if (process.exitValue() != 0) {
+            return determineFailureResult(logContent, process.exitValue());
+        }
+        
+        return determineResultFromOutput(logContent);
+    }
+    
+    /**
+     * 确定失败结果
+     */
+    private ExecutionResultInfo determineFailureResult(String logContent, int exitCode) {
+        if (isBlockedByEnvironment(logContent)) {
+            String failureReason = "Environment issue caused test case execution failure: " + analyzeFailureReason(logContent, exitCode);
+            return new ExecutionResultInfo("BLOCKED", "Test case execution blocked (environment issue)", failureReason);
+        } else {
+            String failureReason = analyzeFailureReason(logContent, exitCode);
+            return new ExecutionResultInfo("FAILED", "Test case execution failed, exit code: " + exitCode, failureReason);
+        }
+    }
+    
+    /**
+     * 从输出确定结果
+     */
+    private ExecutionResultInfo determineResultFromOutput(String logContent) {
+        TestResultAnalysis analysis = analyzeTestOutput(logContent);
+        return new ExecutionResultInfo(analysis.getStatus(), analysis.getResult(), analysis.getFailureReason());
+    }
+    
+    /**
+     * 上传日志文件（如果需要）
+     */
+    private String uploadLogFileIfNeeded(TestCaseExecutionRequest request, TestCaseExecutionRequest.TestCaseInfo testCase, 
+                                        Path logFilePath, String logFileName) {
+        if (request.getLogReportUrl() == null || request.getLogReportUrl().trim().isEmpty()) {
+            LOGGER.info("GoHttpServer address not provided, skipping log file upload - Test case ID: {}, Round: {}", 
+                    testCase.getTestCaseId(), testCase.getRound());
+            return null;
+        }
+        
+        try {
+            // LogUploadDiagnosticTool.diagnoseLogFilePath(logFilePath.toString(), request.getTaskId(), 
+            //         testCase.getTestCaseId(), testCase.getRound());
+            // LogUploadDiagnosticTool.diagnoseGoHttpServer(request.getLogReportUrl(), request.getTaskId());
+            
+            if (!Files.exists(logFilePath)) {
+                LOGGER.warn("Log file does not exist, skipping upload - Test case ID: {}, Round: {}, File path: {}", 
+                        testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
+                return null;
+            }
+            
+            long fileSize = Files.size(logFilePath);
+            if (fileSize == 0) {
+                LOGGER.warn("Log file is empty, skipping upload - Test case ID: {}, Round: {}, File path: {}", 
+                        testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString());
+                return null;
+            }
+            
+            LOGGER.info("Preparing to upload log file - Test case ID: {}, Round: {}, File path: {}, File size: {} bytes", 
+                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), fileSize);
+            
+            com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
+            String uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
+            LOGGER.info("Log file upload succeeded - Test case ID: {}, Round: {}, Upload URL: {}", 
+                    testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
+            return uploadedLogUrl;
+        } catch (Exception e) {
+            LOGGER.error("Log file upload failed - Test case ID: {}, Round: {}, File path: {}, Error: {}", 
+                    testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * 构建Python执行结果
+     */
+    private PythonExecutorUtil.PythonExecutionResult buildPythonExecutionResult(ExecutionResultInfo resultInfo, 
+                                                                               String logContent, String uploadedLogUrl, String logFileName) {
+        return PythonExecutorUtil.PythonExecutionResult.builder()
+                .status(resultInfo.getStatus())
+                .result(resultInfo.getResult())
+                .executionTime(System.currentTimeMillis() - System.currentTimeMillis())
+                .startTime(java.time.LocalDateTime.now())
+                .endTime(java.time.LocalDateTime.now())
+                .logContent(logContent)
+                .logFilePath(uploadedLogUrl != null ? uploadedLogUrl : logFileName)
+                .failureReason(resultInfo.getFailureReason())
+                .build();
+    }
+    
+    /**
+     * 执行结果信息
+     */
+    private static class ExecutionResultInfo {
+        private final String status;
+        private final String result;
+        private final String failureReason;
+        
+        public ExecutionResultInfo(String status, String result, String failureReason) {
+            this.status = status;
+            this.result = result;
+            this.failureReason = failureReason;
+        }
+        
+        public String getStatus() { return status; }
+        public String getResult() { return result; }
+        public String getFailureReason() { return failureReason; }
     }
     
     /**
@@ -881,10 +1018,10 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                 if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
                     process.destroyForcibly();
                 }
-                log.info("已强制终止进程");
+                LOGGER.info("Process forcefully terminated");
             }
         } catch (Exception e) {
-            log.error("终止进程失败: {}", e.getMessage());
+            LOGGER.error("Failed to terminate process: {}", e.getMessage());
         }
     }
     
@@ -909,13 +1046,12 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private String analyzeFailureReason(String logContent, int exitCode) {
         if (logContent == null || logContent.trim().isEmpty()) {
-            return "进程异常退出，退出码: " + exitCode;
+            return "Process exited abnormally, exit code: " + exitCode;
         }
         
-        // 提取最后几行错误信息
         String[] lines = logContent.split("\n");
         StringBuilder errorInfo = new StringBuilder();
-        int startIndex = Math.max(0, lines.length - 5); // 取最后5行
+        int startIndex = Math.max(0, lines.length - 5);
         
         for (int i = startIndex; i < lines.length; i++) {
             if (lines[i].trim().length() > 0) {
@@ -923,7 +1059,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             }
         }
         
-        return errorInfo.length() > 0 ? errorInfo.toString() : "进程异常退出，退出码: " + exitCode;
+        return errorInfo.length() > 0 ? errorInfo.toString() : "Process exited abnormally, exit code: " + exitCode;
     }
     
     /**
@@ -931,17 +1067,17 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private TestResultAnalysis analyzeTestOutput(String logContent) {
         if (logContent == null) {
-            return new TestResultAnalysis("BLOCKED", "无法读取执行日志", "日志内容为空");
+            return new TestResultAnalysis("BLOCKED", "Cannot read execution log", "Log content is empty");
         }
         
         String lowerContent = logContent.toLowerCase();
         
         if (lowerContent.contains("case success")) {
-            return new TestResultAnalysis("SUCCESS", "用例执行成功", null);
+            return new TestResultAnalysis("SUCCESS", "Test case execution succeeded", null);
         } else if (lowerContent.contains("case failed")) {
-            return new TestResultAnalysis("FAILED", "用例执行失败", extractFailureDetails(logContent));
+            return new TestResultAnalysis("FAILED", "Test case execution failed", extractFailureDetails(logContent));
         } else {
-            return new TestResultAnalysis("BLOCKED", "无法确定执行结果", "日志内容无法解析");
+            return new TestResultAnalysis("BLOCKED", "Cannot determine execution result", "Log content cannot be parsed");
         }
     }
     
@@ -953,47 +1089,45 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      * @param request 用例执行任务请求
      */
     private void logTaskContextInfo(TestCaseExecutionRequest request) {
-        log.info("=== 任务上下文信息 ===");
+        LOGGER.info("=== Task Context Information ===");
         
-        // 记录UE信息
         if (request.getUeList() != null && !request.getUeList().isEmpty()) {
-            log.info("执行机关联的UE设备信息:");
-            log.info("  - UE设备数量: {}", request.getUeList().size());
+            LOGGER.info("UE device information associated with executor:");
+            LOGGER.info("  - UE device count: {}", request.getUeList().size());
             for (TestCaseExecutionRequest.UeInfo ue : request.getUeList()) {
-                log.info("  - UE ID: {}, 名称: {}, 用途: {}, 网络类型: {}, 厂商: {}, 端口: {}, 状态: {}", 
+                LOGGER.info("  - UE ID: {}, Name: {}, Purpose: {}, Network type: {}, Vendor: {}, Port: {}, Status: {}", 
                         ue.getUeId(), ue.getName(), ue.getPurpose(), 
                         ue.getNetworkTypeName(), ue.getVendor(), ue.getPort(), ue.getStatus());
                 if (ue.getDescription() != null && !ue.getDescription().trim().isEmpty()) {
-                    log.info("    - 描述: {}", ue.getDescription());
+                    LOGGER.info("    - Description: {}", ue.getDescription());
                 }
             }
         } else {
-            log.warn("执行机未关联UE设备信息");
+            LOGGER.warn("Executor is not associated with UE device information");
         }
         
-        // 记录采集策略信息
         if (request.getCollectStrategyInfo() != null) {
             TestCaseExecutionRequest.CollectStrategyInfo strategy = request.getCollectStrategyInfo();
-            log.info("采集策略信息:");
-            log.info("  - 策略ID: {}", strategy.getId());
-            log.info("  - 策略名称: {}", strategy.getName());
-            log.info("  - 采集次数: {}", strategy.getCollectCount());
-            log.info("  - 业务大类: {}", strategy.getBusinessCategory());
-            log.info("  - APP: {}", strategy.getApp());
-            log.info("  - APPEN: {}", strategy.getAppEn());
-            log.info("  - 意图: {}", strategy.getIntent());
-            log.info("  - 策略状态: {}", strategy.getStatus());
+            LOGGER.info("Collection strategy information:");
+            LOGGER.info("  - Strategy ID: {}", strategy.getId());
+            LOGGER.info("  - Strategy name: {}", strategy.getName());
+            LOGGER.info("  - Collection count: {}", strategy.getCollectCount());
+            LOGGER.info("  - Business category: {}", strategy.getBusinessCategory());
+            LOGGER.info("  - APP: {}", strategy.getApp());
+            LOGGER.info("  - APPEN: {}", strategy.getAppEn());
+            LOGGER.info("  - Intent: {}", strategy.getIntent());
+            LOGGER.info("  - Strategy status: {}", strategy.getStatus());
             if (strategy.getCustomParams() != null && !strategy.getCustomParams().trim().isEmpty()) {
-                log.info("  - 自定义参数: {}", strategy.getCustomParams());
+                LOGGER.info("  - Custom parameters: {}", strategy.getCustomParams());
             }
             if (strategy.getDescription() != null && !strategy.getDescription().trim().isEmpty()) {
-                log.info("  - 策略描述: {}", strategy.getDescription());
+                LOGGER.info("  - Strategy description: {}", strategy.getDescription());
             }
         } else {
-            log.warn("未提供采集策略信息");
+            LOGGER.warn("Collection strategy information not provided");
         }
         
-        log.info("=== 任务上下文信息记录完成 ===");
+        LOGGER.info("=== Task Context Information Logging Completed ===");
     }
     
     /**
