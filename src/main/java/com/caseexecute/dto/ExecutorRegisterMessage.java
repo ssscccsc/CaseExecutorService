@@ -22,6 +22,11 @@ public class ExecutorRegisterMessage {
     private String executorIp;
     
     /**
+     * 执行机MAC地址
+     */
+    private String executorMac;
+    
+    /**
      * 执行机名称
      */
     private String executorName;

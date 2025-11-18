@@ -43,6 +43,11 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
     private String localIp;
     
     /**
+     * 本地MAC地址
+     */
+    private String localMac;
+    
+    /**
      * WebSocket客户端实例
      */
     private WebSocketClient webSocketClient;
@@ -65,6 +70,9 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             try {
                 localIp = getLocalIpAddress();
                 log.info("执行机本地IP地址: {}", localIp);
+                
+                localMac = getLocalMacAddress();
+                log.info("执行机本地MAC地址: {}", localMac);
             } catch (Exception e) {
                 log.error("获取本地IP地址失败: {}", e.getMessage(), e);
             }
@@ -197,6 +205,7 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
         try {
             ExecutorRegisterMessage registerMsg = new ExecutorRegisterMessage();
             registerMsg.setExecutorIp(localIp);
+            registerMsg.setExecutorMac(localMac);
             registerMsg.setExecutorName("Executor-" + localIp);
             registerMsg.setStatus(1); // 在线
             registerMsg.setTimestamp(System.currentTimeMillis());
@@ -425,6 +434,85 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
         
         // 如果没找到，返回本地地址
         return InetAddress.getLocalHost().getHostAddress();
+    }
+    
+    /**
+     * 获取本地MAC地址
+     */
+    private String getLocalMacAddress() {
+        try {
+            // 优先尝试获取与本地IP对应的网络接口的MAC地址
+            if (localIp != null && !localIp.isEmpty()) {
+                java.util.Enumeration<java.net.NetworkInterface> interfaces = 
+                        java.net.NetworkInterface.getNetworkInterfaces();
+                
+                while (interfaces.hasMoreElements()) {
+                    java.net.NetworkInterface networkInterface = interfaces.nextElement();
+                    if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                        continue;
+                    }
+                    
+                    java.util.Enumeration<java.net.InetAddress> addresses = 
+                            networkInterface.getInetAddresses();
+                    
+                    while (addresses.hasMoreElements()) {
+                        InetAddress address = addresses.nextElement();
+                        if (address instanceof java.net.Inet4Address && 
+                            !address.isLoopbackAddress() && 
+                            address.getHostAddress().equals(localIp)) {
+                            byte[] macBytes = networkInterface.getHardwareAddress();
+                            if (macBytes != null && macBytes.length > 0) {
+                                return formatMacAddress(macBytes);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 如果没找到对应的，尝试获取第一个非回环网络接口的MAC地址
+            java.util.Enumeration<java.net.NetworkInterface> interfaces = 
+                    java.net.NetworkInterface.getNetworkInterfaces();
+            
+            while (interfaces.hasMoreElements()) {
+                java.net.NetworkInterface networkInterface = interfaces.nextElement();
+                if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                    continue;
+                }
+                
+                byte[] macBytes = networkInterface.getHardwareAddress();
+                if (macBytes != null && macBytes.length > 0) {
+                    return formatMacAddress(macBytes);
+                }
+            }
+            
+            log.warn("无法获取MAC地址，返回空字符串");
+            return "";
+        } catch (Exception e) {
+            log.error("获取本地MAC地址失败: {}", e.getMessage(), e);
+            return "";
+        }
+    }
+    
+    /**
+     * 格式化MAC地址为字符串（格式：XX:XX:XX:XX:XX:XX）
+     */
+    private String formatMacAddress(byte[] macBytes) {
+        if (macBytes == null || macBytes.length == 0) {
+            return "";
+        }
+        
+        StringBuilder macAddress = new StringBuilder();
+        for (int i = 0; i < macBytes.length; i++) {
+            if (i > 0) {
+                macAddress.append(":");
+            }
+            String hex = Integer.toHexString(0xFF & macBytes[i]);
+            if (hex.length() == 1) {
+                macAddress.append("0");
+            }
+            macAddress.append(hex.toUpperCase());
+        }
+        return macAddress.toString();
     }
     
     /**
