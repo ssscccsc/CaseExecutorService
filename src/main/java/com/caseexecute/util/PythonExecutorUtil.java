@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.PreDestroy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -41,7 +42,7 @@ public class PythonExecutorUtil implements ApplicationContextAware {
     
     private static ApplicationContext applicationContext;
     private static FileStorageConfig fileStorageConfig;
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
+    private static ExecutorService executorService = Executors.newCachedThreadPool();
     
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -1283,4 +1284,54 @@ public class PythonExecutorUtil implements ApplicationContextAware {
         
         return escaped;
     }
+    
+    /**
+     * 关闭线程池（在应用关闭时调用）
+     */
+    @PreDestroy
+    public void shutdown() {
+        if (executorService != null && !executorService.isShutdown()) {
+            log.info("正在关闭PythonExecutorUtil线程池...");
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.warn("线程池未在10秒内关闭，强制关闭");
+                    executorService.shutdownNow();
+                    if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                        log.error("线程池无法关闭");
+                    }
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            log.info("PythonExecutorUtil线程池已关闭");
+        }
+    }
+}
+
+    /**
+     * 关闭线程池（在应用关闭时调用）
+     */
+    @PreDestroy
+    public void shutdown() {
+        if (executorService != null && !executorService.isShutdown()) {
+            log.info("正在关闭PythonExecutorUtil线程池...");
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.warn("线程池未在10秒内关闭，强制关闭");
+                    executorService.shutdownNow();
+                    if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                        log.error("线程池无法关闭");
+                    }
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            log.info("PythonExecutorUtil线程池已关闭");
+        }
+    }
+}
 }
