@@ -72,4 +72,14 @@ public class TestCaseResultReport {
      * 日志文件路径或HTTP链接
      */
     private String logFilePath;
+    
+    /**
+     * 用例采集路径输出（从日志中解析 "save log in xxx" 后面的信息）
+     */
+    private String collectPath;
+    
+    /**
+     * 质检结果（从日志中解析 "===QC_Result===" 到 "===End" 中间的信息）
+     */
+    private String qcResult;
 }

@@ -503,7 +503,8 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         LOGGER.info("Result report URL: {}", request.getResultReportUrl());
         
         reportTestCaseResult(request, testCase, analysis.getStatus(), analysis.getResult(), 
-                executionResult.getExecutionTime(), executionResult.getStartTime(), executionResult.getEndTime(), analysis.getFailureReason(), executionResult.getLogFilePath());
+                executionResult.getExecutionTime(), executionResult.getStartTime(), executionResult.getEndTime(), 
+                analysis.getFailureReason(), executionResult.getLogFilePath(), analysis.getCollectPath(), analysis.getQcResult());
     }
     
     /**
@@ -542,24 +543,28 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         String failureReason = executionResult.getFailureReason();
         String logContent = executionResult.getLogContent();
         
+        // 提取采集路径和质检结果
+        String collectPath = extractCollectPath(logContent);
+        String qcResult = extractQcResult(logContent);
+        
         TestCaseResultParser.TestCaseParseResult parseResult = TestCaseResultParser.parseResult(logContent);
         
         if (!"BLOCKED".equals(parseResult.getStatus())) {
-            return buildAnalysisFromParseResult(parseResult, result);
+            return buildAnalysisFromParseResult(parseResult, result, collectPath, qcResult);
         } else {
-            return buildAnalysisFromFallbackLogic(status, result, failureReason, logContent, parseResult);
+            return buildAnalysisFromFallbackLogic(status, result, failureReason, logContent, parseResult, collectPath, qcResult);
         }
     }
     
     /**
      * 从解析结果构建分析结果
      */
-    private TestCaseAnalysis buildAnalysisFromParseResult(TestCaseResultParser.TestCaseParseResult parseResult, String originalResult) {
+    private TestCaseAnalysis buildAnalysisFromParseResult(TestCaseResultParser.TestCaseParseResult parseResult, String originalResult, String collectPath, String qcResult) {
         String status = parseResult.getStatus();
         String result = parseResult.getResultMessage();
         String failureReason = buildFailureReasonFromParseResult(parseResult);
         result = addPerformanceMetrics(result, parseResult);
-        return new TestCaseAnalysis(status, result, failureReason);
+        return new TestCaseAnalysis(status, result, failureReason, collectPath, qcResult);
     }
     
     /**
@@ -599,9 +604,10 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      * 使用降级逻辑构建分析结果
      */
     private TestCaseAnalysis buildAnalysisFromFallbackLogic(String status, String result, String failureReason, 
-                                                           String logContent, TestCaseResultParser.TestCaseParseResult parseResult) {
+                                                           String logContent, TestCaseResultParser.TestCaseParseResult parseResult, String collectPath, String qcResult) {
         if ("SUCCESS".equals(status)) {
-            return analyzeSuccessStatus(logContent);
+            TestCaseAnalysis analysis = analyzeSuccessStatus(logContent);
+            return new TestCaseAnalysis(analysis.getStatus(), analysis.getResult(), analysis.getFailureReason(), collectPath, qcResult);
         } else if ("FAILED".equals(status)) {
             failureReason = analyzeDetailedFailureReason(logContent, failureReason);
         } else if ("BLOCKED".equals(status)) {
@@ -609,7 +615,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         }
         
         result = addPerformanceMetrics(result, parseResult);
-        return new TestCaseAnalysis(status, result, failureReason);
+        return new TestCaseAnalysis(status, result, failureReason, collectPath, qcResult);
     }
     
     /**
@@ -685,16 +691,26 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         private String status;
         private String result;
         private String failureReason;
+        private String collectPath;
+        private String qcResult;
         
         public TestCaseAnalysis(String status, String result, String failureReason) {
+            this(status, result, failureReason, null, null);
+        }
+        
+        public TestCaseAnalysis(String status, String result, String failureReason, String collectPath, String qcResult) {
             this.status = status;
             this.result = result;
             this.failureReason = failureReason;
+            this.collectPath = collectPath;
+            this.qcResult = qcResult;
         }
         
         public String getStatus() { return status; }
         public String getResult() { return result; }
         public String getFailureReason() { return failureReason; }
+        public String getCollectPath() { return collectPath; }
+        public String getQcResult() { return qcResult; }
     }
     
     /**
@@ -722,8 +738,25 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                                     java.time.LocalDateTime endTime,
                                     String failureReason,
                                     String logFilePath) {
-        LOGGER.info("Building test case execution result report - Test case ID: {}, Round: {}, Status: {}, Result: {}, Log file: {}", 
-                testCase.getTestCaseId(), testCase.getRound(), status, result, logFilePath);
+        reportTestCaseResult(request, testCase, status, result, executionTime, startTime, endTime, failureReason, logFilePath, null, null);
+    }
+    
+    /**
+     * 上报用例执行结果（带失败原因、日志文件路径、采集路径和质检结果）
+     */
+    private void reportTestCaseResult(TestCaseExecutionRequest request,
+                                    TestCaseExecutionRequest.TestCaseInfo testCase,
+                                    String status,
+                                    String result,
+                                    Long executionTime,
+                                    java.time.LocalDateTime startTime,
+                                    java.time.LocalDateTime endTime,
+                                    String failureReason,
+                                    String logFilePath,
+                                    String collectPath,
+                                    String qcResult) {
+        LOGGER.info("Building test case execution result report - Test case ID: {}, Round: {}, Status: {}, Result: {}, Log file: {}, Collect path: {}, QC result length: {}", 
+                testCase.getTestCaseId(), testCase.getRound(), status, result, logFilePath, collectPath, qcResult != null ? qcResult.length() : 0);
         
         TestCaseResultReport report = new TestCaseResultReport();
         report.setTaskId(request.getTaskId());
@@ -737,6 +770,8 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         report.setExecutorIp(request.getExecutorIp());
         report.setTestCaseSetId(request.getTestCaseSetId());
         report.setLogFilePath(logFilePath);
+        report.setCollectPath(collectPath);
+        report.setQcResult(qcResult);
         
         if ("FAILED".equals(status) || "BLOCKED".equals(status)) {
             report.setFailureReason(failureReason != null ? failureReason : result);
@@ -744,8 +779,8 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                     testCase.getTestCaseId(), testCase.getRound(), report.getFailureReason());
         }
         
-        LOGGER.info("Test case execution result report built - Test case ID: {}, Round: {}, Task ID: {}, Executor IP: {}, Log file: {}", 
-                testCase.getTestCaseId(), testCase.getRound(), request.getTaskId(), request.getExecutorIp(), logFilePath);
+        LOGGER.info("Test case execution result report built - Test case ID: {}, Round: {}, Task ID: {}, Executor IP: {}, Log file: {}, Collect path: {}", 
+                testCase.getTestCaseId(), testCase.getRound(), request.getTaskId(), request.getExecutorIp(), logFilePath, collectPath);
         
         httpReportUtil.reportTestCaseResult(request.getResultReportUrl(), report);
     }
@@ -1067,18 +1102,100 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private TestResultAnalysis analyzeTestOutput(String logContent) {
         if (logContent == null) {
-            return new TestResultAnalysis("BLOCKED", "Cannot read execution log", "Log content is empty");
+            return new TestResultAnalysis("BLOCKED", "Cannot read execution log", "Log content is empty", null, null);
         }
+        
+        // 解析采集路径（从 "save log in xxx" 中提取）
+        String collectPath = extractCollectPath(logContent);
+        
+        // 解析质检结果（从 "===QC_Result===" 到 "===End" 中间的信息）
+        String qcResult = extractQcResult(logContent);
         
         String lowerContent = logContent.toLowerCase();
         
         if (lowerContent.contains("case success")) {
-            return new TestResultAnalysis("SUCCESS", "Test case execution succeeded", null);
+            return new TestResultAnalysis("SUCCESS", "Test case execution succeeded", null, collectPath, qcResult);
         } else if (lowerContent.contains("case failed")) {
-            return new TestResultAnalysis("FAILED", "Test case execution failed", extractFailureDetails(logContent));
+            return new TestResultAnalysis("FAILED", "Test case execution failed", extractFailureDetails(logContent), collectPath, qcResult);
         } else {
-            return new TestResultAnalysis("BLOCKED", "Cannot determine execution result", "Log content cannot be parsed");
+            return new TestResultAnalysis("BLOCKED", "Cannot determine execution result", "Log content cannot be parsed", collectPath, qcResult);
         }
+    }
+    
+    /**
+     * 从日志中提取采集路径（"save log in xxx" 后面的信息）
+     */
+    private String extractCollectPath(String logContent) {
+        if (logContent == null || logContent.trim().isEmpty()) {
+            return null;
+        }
+        
+        // 使用正则表达式匹配 "save log in xxx" 模式（不区分大小写）
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("save\\s+log\\s+in\\s+(.+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+        java.util.regex.Matcher matcher = pattern.matcher(logContent);
+        
+        if (matcher.find()) {
+            String path = matcher.group(1).trim();
+            // 移除可能的换行符和多余空格
+            path = path.replaceAll("\\s+", " ").trim();
+            // 如果路径以换行符结尾，移除它
+            if (path.contains("\n")) {
+                path = path.substring(0, path.indexOf("\n")).trim();
+            }
+            if (path.contains("\r")) {
+                path = path.substring(0, path.indexOf("\r")).trim();
+            }
+            LOGGER.info("Extracted collect path from log: {}", path);
+            return path;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从日志中提取质检结果（"===QC_Result===" 到 "===End" 中间的信息）
+     */
+    private String extractQcResult(String logContent) {
+        if (logContent == null || logContent.trim().isEmpty()) {
+            return null;
+        }
+        
+        // 查找 "===QC_Result===" 的位置
+        int qcResultStart = logContent.indexOf("===QC_Result===");
+        if (qcResultStart == -1) {
+            return null;
+        }
+        
+        // 查找 "===End" 的位置（从QC_Result之后开始查找）
+        int qcResultEnd = logContent.indexOf("===End", qcResultStart);
+        if (qcResultEnd == -1) {
+            // 如果没有找到 "===End"，尝试查找 "=== End"（带空格）
+            qcResultEnd = logContent.indexOf("=== End", qcResultStart);
+            if (qcResultEnd == -1) {
+                // 如果还是没有找到，返回从QC_Result到日志结尾的内容
+                qcResultEnd = logContent.length();
+            }
+        }
+        
+        // 提取中间的内容（跳过 "===QC_Result===" 这一行）
+        int contentStart = logContent.indexOf("\n", qcResultStart);
+        if (contentStart == -1) {
+            contentStart = qcResultStart + "===QC_Result===".length();
+        } else {
+            contentStart += 1; // 跳过换行符
+        }
+        
+        if (contentStart >= qcResultEnd) {
+            return null;
+        }
+        
+        String qcResult = logContent.substring(contentStart, qcResultEnd).trim();
+        if (qcResult.isEmpty()) {
+            return null;
+        }
+        
+        LOGGER.info("Extracted QC result from log, length: {} characters", qcResult.length());
+        return qcResult;
     }
     
 
@@ -1137,15 +1254,25 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         private final String status;
         private final String result;
         private final String failureReason;
+        private final String collectPath;
+        private final String qcResult;
         
         public TestResultAnalysis(String status, String result, String failureReason) {
+            this(status, result, failureReason, null, null);
+        }
+        
+        public TestResultAnalysis(String status, String result, String failureReason, String collectPath, String qcResult) {
             this.status = status;
             this.result = result;
             this.failureReason = failureReason;
+            this.collectPath = collectPath;
+            this.qcResult = qcResult;
         }
         
         public String getStatus() { return status; }
         public String getResult() { return result; }
         public String getFailureReason() { return failureReason; }
+        public String getCollectPath() { return collectPath; }
+        public String getQcResult() { return qcResult; }
     }
 }
