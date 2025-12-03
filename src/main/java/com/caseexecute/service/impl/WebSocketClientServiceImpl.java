@@ -251,6 +251,23 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             registerMsg.setStatus(1); // 在线
             registerMsg.setTimestamp(System.currentTimeMillis());
             
+            // 设置地域信息（从启动参数读取）
+            if (regionName != null && !regionName.trim().isEmpty()) {
+                registerMsg.setRegionName(regionName.trim());
+            }
+            if (countryName != null && !countryName.trim().isEmpty()) {
+                registerMsg.setCountryName(countryName.trim());
+            }
+            if (provinceName != null && !provinceName.trim().isEmpty()) {
+                registerMsg.setProvinceName(provinceName.trim());
+            }
+            if (cityName != null && !cityName.trim().isEmpty()) {
+                registerMsg.setCityName(cityName.trim());
+            }
+            
+            log.info("执行机注册消息 - 地域信息: 地域={}, 国家={}, 省份={}, 城市={}", 
+                    regionName, countryName, provinceName, cityName);
+            
             WebSocketMessage wsMessage = new WebSocketMessage();
             wsMessage.setType("REGISTER");
             wsMessage.setData(registerMsg);
@@ -828,6 +845,23 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             registerMsg.setExecutorName("Executor-" + localIp);
             registerMsg.setStatus(1); // 在线
             registerMsg.setTimestamp(System.currentTimeMillis());
+            
+            // 设置地域信息（从启动参数读取）
+            if (regionName != null && !regionName.trim().isEmpty()) {
+                registerMsg.setRegionName(regionName.trim());
+            }
+            if (countryName != null && !countryName.trim().isEmpty()) {
+                registerMsg.setCountryName(countryName.trim());
+            }
+            if (provinceName != null && !provinceName.trim().isEmpty()) {
+                registerMsg.setProvinceName(provinceName.trim());
+            }
+            if (cityName != null && !cityName.trim().isEmpty()) {
+                registerMsg.setCityName(cityName.trim());
+            }
+            
+            log.info("执行机注册消息 - 地域信息: 地域={}, 国家={}, 省份={}, 城市={}", 
+                    regionName, countryName, provinceName, cityName);
             
             WebSocketMessage wsMessage = new WebSocketMessage();
             wsMessage.setType("REGISTER");

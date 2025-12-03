@@ -42,6 +42,26 @@ public class ExecutorRegisterMessage {
     private String description;
     
     /**
+     * 地域名称（片区，level=1）
+     */
+    private String regionName;
+    
+    /**
+     * 国家名称（level=2）
+     */
+    private String countryName;
+    
+    /**
+     * 省份名称（level=3）
+     */
+    private String provinceName;
+    
+    /**
+     * 城市名称（level=4）
+     */
+    private String cityName;
+    
+    /**
      * 时间戳
      */
     private Long timestamp;
