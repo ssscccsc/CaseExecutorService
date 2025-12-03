@@ -1154,6 +1154,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     
     /**
      * 从日志中提取质检结果（"===QC_Result===" 到 "===End" 中间的信息）
+     * 将每行的 "key: value" 格式解析成 JSON 对象
      */
     private String extractQcResult(String logContent) {
         if (logContent == null || logContent.trim().isEmpty()) {
@@ -1189,13 +1190,54 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             return null;
         }
         
-        String qcResult = logContent.substring(contentStart, qcResultEnd).trim();
-        if (qcResult.isEmpty()) {
+        String qcResultText = logContent.substring(contentStart, qcResultEnd).trim();
+        if (qcResultText.isEmpty()) {
             return null;
         }
         
-        LOGGER.info("Extracted QC result from log, length: {} characters", qcResult.length());
-        return qcResult;
+        // 解析文本为 JSON 格式（每行格式：key: value）
+        try {
+            java.util.Map<String, Object> qcResultMap = new java.util.LinkedHashMap<>();
+            String[] lines = qcResultText.split("[\r\n]+");
+            
+            for (String line : lines) {
+                line = line.trim();
+                if (line.isEmpty()) {
+                    continue;
+                }
+                
+                // 查找第一个冒号的位置
+                int colonIndex = line.indexOf(':');
+                if (colonIndex > 0 && colonIndex < line.length() - 1) {
+                    String key = line.substring(0, colonIndex).trim();
+                    String value = line.substring(colonIndex + 1).trim();
+                    
+                    // 如果 key 和 value 都不为空，添加到 map 中
+                    if (!key.isEmpty() && !value.isEmpty()) {
+                        qcResultMap.put(key, value);
+                    }
+                }
+            }
+            
+            // 如果 map 为空，返回原始文本
+            if (qcResultMap.isEmpty()) {
+                LOGGER.warn("QC result parsing produced empty map, returning original text");
+                return qcResultText;
+            }
+            
+            // 将 map 转换为 JSON 字符串
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String qcResultJson = objectMapper.writeValueAsString(qcResultMap);
+            
+            LOGGER.info("Extracted and parsed QC result from log, {} key-value pairs, JSON length: {} characters", 
+                    qcResultMap.size(), qcResultJson.length());
+            return qcResultJson;
+            
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse QC result as JSON, returning original text. Error: {}", e.getMessage(), e);
+            // 解析失败时返回原始文本
+            return qcResultText;
+        }
     }
     
 
