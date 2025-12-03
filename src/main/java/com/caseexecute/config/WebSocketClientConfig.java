@@ -39,6 +39,37 @@ public class WebSocketClientConfig {
      * 连接超时时间（秒）
      */
     private Long connectionTimeout = 10L;
+    
+    /**
+     * 执行机地域信息配置
+     */
+    private RegionConfig region = new RegionConfig();
+    
+    /**
+     * 地域信息配置类
+     */
+    @Data
+    public static class RegionConfig {
+        /**
+         * 地域名称（片区，level=1）
+         */
+        private String regionName;
+        
+        /**
+         * 国家名称（level=2）
+         */
+        private String countryName;
+        
+        /**
+         * 省份名称（level=3）
+         */
+        private String provinceName;
+        
+        /**
+         * 城市名称（level=4）
+         */
+        private String cityName;
+    }
 }
 
 

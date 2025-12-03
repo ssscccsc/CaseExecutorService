@@ -77,3 +77,13 @@ websocket:
     heartbeat-interval: 30
     # 连接超时时间（秒）
     connection-timeout: 10
+    # 执行机地域信息配置（用于注册时发送给后台服务）
+    region:
+      # 地域名称（片区，level=1），可通过启动参数覆盖：--websocket.client.region.region-name=亚洲
+      region-name: 
+      # 国家名称（level=2），可通过启动参数覆盖：--websocket.client.region.country-name=中国
+      country-name: 
+      # 省份名称（level=3），可通过启动参数覆盖：--websocket.client.region.province-name=北京
+      province-name: 
+      # 城市名称（level=4），可通过启动参数覆盖：--websocket.client.region.city-name=北京
+      city-name:

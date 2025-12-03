@@ -19,6 +19,12 @@
       "name": "websocket.client",
       "type": "com.caseexecute.config.WebSocketClientConfig",
       "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.region",
+      "type": "com.caseexecute.config.WebSocketClientConfig$RegionConfig",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig",
+      "sourceMethod": "public com.caseexecute.config.WebSocketClientConfig.RegionConfig getRegion() "
     }
   ],
   "properties": [
@@ -117,6 +123,30 @@
       "type": "java.lang.Long",
       "description": "重连间隔（秒）",
       "sourceType": "com.caseexecute.config.WebSocketClientConfig"
+    },
+    {
+      "name": "websocket.client.region.city-name",
+      "type": "java.lang.String",
+      "description": "城市名称（level=4）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig$RegionConfig"
+    },
+    {
+      "name": "websocket.client.region.country-name",
+      "type": "java.lang.String",
+      "description": "国家名称（level=2）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig$RegionConfig"
+    },
+    {
+      "name": "websocket.client.region.province-name",
+      "type": "java.lang.String",
+      "description": "省份名称（level=3）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig$RegionConfig"
+    },
+    {
+      "name": "websocket.client.region.region-name",
+      "type": "java.lang.String",
+      "description": "地域名称（片区，level=1）",
+      "sourceType": "com.caseexecute.config.WebSocketClientConfig$RegionConfig"
     },
     {
       "name": "websocket.client.server-url",

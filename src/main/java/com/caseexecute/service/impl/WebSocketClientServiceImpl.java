@@ -251,22 +251,18 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             registerMsg.setStatus(1); // 在线
             registerMsg.setTimestamp(System.currentTimeMillis());
             
-            // 设置地域信息（从启动参数读取）
-            if (regionName != null && !regionName.trim().isEmpty()) {
-                registerMsg.setRegionName(regionName.trim());
+            // 从配置中读取地域信息并设置到注册消息中
+            if (webSocketClientConfig != null && webSocketClientConfig.getRegion() != null) {
+                WebSocketClientConfig.RegionConfig regionConfig = webSocketClientConfig.getRegion();
+                registerMsg.setRegionName(regionConfig.getRegionName());
+                registerMsg.setCountryName(regionConfig.getCountryName());
+                registerMsg.setProvinceName(regionConfig.getProvinceName());
+                registerMsg.setCityName(regionConfig.getCityName());
+                
+                log.info("执行机地域信息已从配置读取 - 地域: {}, 国家: {}, 省份: {}, 城市: {}", 
+                        regionConfig.getRegionName(), regionConfig.getCountryName(), 
+                        regionConfig.getProvinceName(), regionConfig.getCityName());
             }
-            if (countryName != null && !countryName.trim().isEmpty()) {
-                registerMsg.setCountryName(countryName.trim());
-            }
-            if (provinceName != null && !provinceName.trim().isEmpty()) {
-                registerMsg.setProvinceName(provinceName.trim());
-            }
-            if (cityName != null && !cityName.trim().isEmpty()) {
-                registerMsg.setCityName(cityName.trim());
-            }
-            
-            log.info("执行机注册消息 - 地域信息: 地域={}, 国家={}, 省份={}, 城市={}", 
-                    regionName, countryName, provinceName, cityName);
             
             WebSocketMessage wsMessage = new WebSocketMessage();
             wsMessage.setType("REGISTER");
@@ -846,22 +842,18 @@ public class WebSocketClientServiceImpl implements WebSocketClientService {
             registerMsg.setStatus(1); // 在线
             registerMsg.setTimestamp(System.currentTimeMillis());
             
-            // 设置地域信息（从启动参数读取）
-            if (regionName != null && !regionName.trim().isEmpty()) {
-                registerMsg.setRegionName(regionName.trim());
+            // 从配置中读取地域信息并设置到注册消息中
+            if (webSocketClientConfig != null && webSocketClientConfig.getRegion() != null) {
+                WebSocketClientConfig.RegionConfig regionConfig = webSocketClientConfig.getRegion();
+                registerMsg.setRegionName(regionConfig.getRegionName());
+                registerMsg.setCountryName(regionConfig.getCountryName());
+                registerMsg.setProvinceName(regionConfig.getProvinceName());
+                registerMsg.setCityName(regionConfig.getCityName());
+                
+                log.info("执行机地域信息已从配置读取 - 地域: {}, 国家: {}, 省份: {}, 城市: {}", 
+                        regionConfig.getRegionName(), regionConfig.getCountryName(), 
+                        regionConfig.getProvinceName(), regionConfig.getCityName());
             }
-            if (countryName != null && !countryName.trim().isEmpty()) {
-                registerMsg.setCountryName(countryName.trim());
-            }
-            if (provinceName != null && !provinceName.trim().isEmpty()) {
-                registerMsg.setProvinceName(provinceName.trim());
-            }
-            if (cityName != null && !cityName.trim().isEmpty()) {
-                registerMsg.setCityName(cityName.trim());
-            }
-            
-            log.info("执行机注册消息 - 地域信息: 地域={}, 国家={}, 省份={}, 城市={}", 
-                    regionName, countryName, provinceName, cityName);
             
             WebSocketMessage wsMessage = new WebSocketMessage();
             wsMessage.setType("REGISTER");
