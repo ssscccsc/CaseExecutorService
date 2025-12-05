@@ -1145,6 +1145,31 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             if (path.contains("\r")) {
                 path = path.substring(0, path.indexOf("\r")).trim();
             }
+            
+            // 处理路径：去除前后引号
+            if (path.length() >= 2) {
+                // 去除前后的单引号
+                if ((path.startsWith("'") && path.endsWith("'"))) {
+                    path = path.substring(1, path.length() - 1).trim();
+                }
+                // 去除前后的双引号
+                if ((path.startsWith("\"") && path.endsWith("\""))) {
+                    path = path.substring(1, path.length() - 1).trim();
+                }
+            }
+            
+            // 如果最后是screenshot则去除
+            if (path.toLowerCase().endsWith("screenshot")) {
+                path = path.substring(0, path.length() - "screenshot".length()).trim();
+                // 如果去除后末尾是路径分隔符，也去除
+                if (path.endsWith("/") || path.endsWith("\\")) {
+                    path = path.substring(0, path.length() - 1).trim();
+                }
+            }
+            
+            // 如果包含\\替换为\
+            path = path.replace("\\\\", "\\");
+            
             LOGGER.info("Extracted collect path from log: {}", path);
             return path;
         }
