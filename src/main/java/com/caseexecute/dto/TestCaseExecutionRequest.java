@@ -137,6 +137,11 @@ public class TestCaseExecutionRequest {
          * UE厂商
          */
         private String vendor;
+
+        /**
+         * UE型号
+         */
+        private String model;
         
         /**
          * UE端口

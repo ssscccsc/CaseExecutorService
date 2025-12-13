@@ -55,9 +55,9 @@ public class TestCaseExecutionController {
                 log.info("执行机关联的UE信息:");
                 log.info("  - UE数量: {}", request.getUeList().size());
                 for (TestCaseExecutionRequest.UeInfo ue : request.getUeList()) {
-                                    log.info("  - UE ID: {}, 名称: {}, 用途: {}, 网络类型: {}, 厂商: {}, 状态: {}", 
+                                    log.info("  - UE ID: {}, 名称: {}, 用途: {}, 网络类型: {}, 厂商: {}, 型号: {}, 状态: {}", 
                         ue.getUeId(), ue.getName(), ue.getPurpose(), 
-                        ue.getNetworkTypeName(), ue.getVendor(), ue.getStatus());
+                        ue.getNetworkTypeName(), ue.getVendor(), ue.getModel(), ue.getStatus());
                 }
             } else {
                 log.warn("执行机未关联UE信息");
