@@ -7,6 +7,7 @@ import com.caseexecute.dto.TestCaseResultReport;
 import com.caseexecute.service.TestCaseExecutionService;
 import com.caseexecute.util.FileDownloadUtil;
 import com.caseexecute.util.HttpReportUtil;
+import com.caseexecute.util.PhoneListYamlUtil;
 import com.caseexecute.util.PythonExecutorUtil;
 import com.caseexecute.util.TestCaseResultParser;
 import org.slf4j.Logger;
@@ -135,6 +136,20 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                 LOGGER.info("Starting to extract test case set file - Task ID: {}, File path: {}", request.getTaskId(), zipFilePath);
                 extractPath = FileDownloadUtil.extractZipFile(zipFilePath, request.getTaskId());
                 LOGGER.info("Test case set file extraction completed - Task ID: {}, Extract path: {}", request.getTaskId(), extractPath);
+                
+                // 2.1 更新phone_list.yaml文件
+                if (request.getUeList() != null && !request.getUeList().isEmpty()) {
+                    try {
+                        LOGGER.info("Starting to update phone_list.yaml - Task ID: {}, UE count: {}", request.getTaskId(), request.getUeList().size());
+                        PhoneListYamlUtil.updatePhoneListYaml(extractPath, request.getUeList());
+                        LOGGER.info("phone_list.yaml update completed - Task ID: {}", request.getTaskId());
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to update phone_list.yaml - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
+                        // 不抛出异常，继续执行用例
+                    }
+                } else {
+                    LOGGER.warn("UE列表为空，跳过phone_list.yaml更新 - Task ID: {}", request.getTaskId());
+                }
                 
                 // 3. 执行用例列表
                 LOGGER.info("Starting to execute test case list - Task ID: {}, Test case count: {}", request.getTaskId(), request.getTestCaseList().size());
