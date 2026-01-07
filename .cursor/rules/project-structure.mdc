@@ -1,0 +1,53 @@
+---
+alwaysApply: true
+description: Project structure and architecture guide for DialTestCenter
+---
+
+# DialTestCenter Project Structure
+
+## Overview
+This is a full-stack application for managing dial test cases with user role management and internationalization support.
+
+## Directory Structure
+- `backend/` - Spring Boot Java application
+- `frontend/` - React TypeScript application with Vite
+- `database/` - Database initialization and migration scripts
+- `AR软件实现设计文档/` - Chinese documentation
+
+## Key Files
+- [backend/src/main/java/com/dialtest/center/DialTestCenterApplication.java](mdc:backend/src/main/java/com/dialtest/center/DialTestCenterApplication.java) - Main Spring Boot application
+- [frontend/src/App.tsx](mdc:frontend/src/App.tsx) - Main React application
+- [database/init.sql](mdc:database/init.sql) - Database initialization
+- [start.sh](mdc:start.sh) - Application startup script
+
+## Architecture
+- **Backend**: Spring Boot + JPA/Hibernate + PostgreSQL
+- **Frontend**: React + TypeScript + Ant Design + i18next
+- **Database**: PostgreSQL with bytea for file storage
+- **Features**: User role management, test case set management, file upload (.zip/.tar.gz), internationalization (Chinese/English)
+
+## Development Guidelines
+- Functions should not exceed 50 lines
+- Files should not exceed 200 lines
+- Use proper error handling and logging
+- Follow RESTful API conventions
+- Maintain type safety in TypeScript
+
+## Development Requirements
+- **Testing**: See [llt-generation.mdc](mdc:.cursor/rules/llt-generation.mdc) for unit testing requirements
+- **API Documentation**: See [yaml-documentation.mdc](mdc:.cursor/rules/yaml-documentation.mdc) for YAML generation requirements
+- **Code Quality**: See [backend-java.mdc](mdc:.cursor/rules/backend-java.mdc) for Java development guidelines
+- **Frontend**: See [frontend-react.mdc](mdc:.cursor/rules/frontend-react.mdc) for React TypeScript guidelines
+
+## Key Components
+- **Entities**: TestCaseSet, TestCase, UserRole, Role
+- **Services**: TestCaseSetService, TestCaseService, UserRoleService, ArchiveParseService, ExcelParseService, ScriptMatchService
+- **Controllers**: TestCaseSetController, UserRoleController
+- **Frontend**: React components with Ant Design UI, i18n support
+- **Database**: PostgreSQL with migration scripts
+
+## File Organization
+- **Backend**: Spring Boot application with layered architecture
+- **Frontend**: React SPA with component-based structure
+- **Database**: SQL scripts for initialization and migrations
+- **Documentation**: Chinese technical documentation in AR软件实现设计文档/

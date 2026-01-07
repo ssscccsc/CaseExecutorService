@@ -1,0 +1,220 @@
+---
+globs: *.java
+description: Logging standards and best practices for Java applications
+---
+
+# Logging Standards
+
+## MANDATORY Logging Rules
+- **Language**: Use English for all log messages
+- **Format**: Use clear, concise English descriptions
+- **Consistency**: Maintain consistent logging format across the application
+- **Level**: Use appropriate log levels (DEBUG, INFO, WARN, ERROR)
+
+## Log Level Usage
+
+### DEBUG Level
+- Use for detailed debugging information
+- Typically used during development and troubleshooting
+- Should not be used in production unless necessary
+
+```java
+logger.debug("Processing user request with ID: {}", requestId);
+logger.debug("File validation passed for: {}", fileName);
+```
+
+### INFO Level
+- Use for general application flow information
+- Important business events and milestones
+- User actions and system state changes
+
+```java
+logger.info("User {} logged in successfully", username);
+logger.info("Test case set uploaded: {} v{}", name, version);
+logger.info("Starting batch processing of {} items", itemCount);
+```
+
+### WARN Level
+- Use for potentially harmful situations
+- Conditions that might cause problems
+- Recoverable error conditions
+
+```java
+logger.warn("File size exceeds recommended limit: {} bytes", fileSize);
+logger.warn("Database connection timeout, retrying...");
+logger.warn("Invalid file format detected: {}", fileExtension);
+```
+
+### ERROR Level
+- Use for error events that might still allow the application to continue
+- Serious problems that need attention
+- Always include exception details when available
+
+```java
+logger.error("Failed to process file: {}", fileName, exception);
+logger.error("Database connection failed", exception);
+logger.error("User authentication failed for user: {}", username);
+```
+
+## Log Message Format
+
+### Basic Format
+```java
+logger.info("Action description: {}", parameter);
+logger.error("Error description: {}", parameter, exception);
+```
+
+### Parameter Placeholders
+- Use `{}` placeholders for parameters
+- Avoid string concatenation in log messages
+- Include relevant context information
+
+```java
+// Good
+logger.info("Processing file: {} with size: {} bytes", fileName, fileSize);
+
+// Bad
+logger.info("Processing file: " + fileName + " with size: " + fileSize + " bytes");
+```
+
+### Exception Logging
+- Always include exception as the last parameter
+- Use appropriate log level (ERROR for exceptions)
+- Include context information
+- **Note**: See exception-handling.mdc for detailed exception handling standards
+
+```java
+// Basic exception logging pattern
+logger.error("Operation failed for: {}", parameter, exception);
+logger.warn("Validation failed for: {}", input, exception);
+```
+
+## Logging Examples
+
+### Service Layer
+```java
+@Service
+public class TestCaseSetService {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetService.class);
+    
+    public TestCaseSet uploadTestCaseSet(MultipartFile file, String description) throws IOException {
+        logger.info("Starting test case set upload: {}", file.getOriginalFilename());
+        
+        // Validate file
+        validateFile(file);
+        logger.debug("File validation completed for: {}", file.getOriginalFilename());
+        
+        // Process file
+        TestCaseSet result = processFile(file, description);
+        logger.info("Test case set uploaded successfully: {} v{}", result.getName(), result.getVersion());
+        
+        return result;
+    }
+}
+```
+
+### Controller Layer
+```java
+@RestController
+public class TestCaseSetController {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetController.class);
+    
+    @PostMapping("/upload")
+    public ResponseEntity<TestCaseSet> uploadTestCaseSet(@RequestParam("file") MultipartFile file,
+                                                       @RequestParam("description") String description) {
+        logger.info("Received upload request for file: {}", file.getOriginalFilename());
+        
+        TestCaseSet result = testCaseSetService.uploadTestCaseSet(file, description);
+        logger.info("Upload request completed successfully for: {}", file.getOriginalFilename());
+        return ResponseEntity.ok(result);
+    }
+}
+```
+
+### Test Classes
+```java
+public class TestCaseSetTest {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetTest.class);
+    
+    @Test
+    public void testUploadTestCaseSet() {
+        logger.debug("Starting test case set upload test");
+        
+        // Test implementation
+        TestCaseSet result = testCaseSetService.uploadTestCaseSet(testFile, "Test description");
+        
+        assertNotNull(result);
+        logger.debug("Test case set upload test completed successfully");
+    }
+}
+```
+
+## Best Practices
+
+### 1. Logger Declaration
+```java
+private static final Logger logger = LoggerFactory.getLogger(ClassName.class);
+```
+
+### 2. Message Content
+- Use clear, descriptive messages
+- Include relevant context (IDs, names, parameters)
+- Avoid sensitive information (passwords, tokens)
+- Use consistent terminology
+
+### 3. Performance Considerations
+- Use parameterized logging to avoid string concatenation
+- Consider log level impact on performance
+- Use DEBUG level sparingly in production
+
+### 4. Error Handling
+- Always log exceptions with context
+- Include stack traces for ERROR level
+- Use appropriate log levels for different error types
+- **Note**: See exception-handling.mdc for detailed exception handling standards
+
+### 5. Security
+- Never log sensitive information
+- Be careful with user input in log messages
+- Consider log file access permissions
+
+## Common Patterns
+
+### Method Entry/Exit
+```java
+public void processRequest(String requestId) {
+    logger.debug("Processing request: {}", requestId);
+    // business logic
+    logger.debug("Request processed successfully: {}", requestId);
+}
+```
+
+### Conditional Logging
+```java
+if (logger.isDebugEnabled()) {
+    logger.debug("Detailed debug information: {}", complexObject);
+}
+```
+
+### Batch Processing
+```java
+logger.info("Starting batch processing of {} items", itemCount);
+for (int i = 0; i < items.size(); i++) {
+    if (i % 100 == 0) {
+        logger.info("Processed {} of {} items", i, itemCount);
+    }
+    // process item
+}
+logger.info("Batch processing completed: {} items processed", itemCount);
+```
+
+## Summary
+
+- **Language**: Always use English for log messages
+- **Format**: Use parameterized logging with `{}` placeholders
+- **Levels**: Use appropriate log levels (DEBUG, INFO, WARN, ERROR)
+- **Context**: Include relevant context information
+- **Exceptions**: Always log exceptions with context
+- **Performance**: Use parameterized logging to avoid string concatenation
+- **Security**: Never log sensitive information
+- **Exception Handling**: See exception-handling.mdc for detailed standards

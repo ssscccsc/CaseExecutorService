@@ -1,0 +1,314 @@
+---
+globs: *.java
+description: Exception handling standards and best practices for Java applications
+---
+
+# Exception Handling Standards
+
+## MANDATORY Exception Handling Rules
+- **Do not catch base exception classes**: Throwable, Exception, RuntimeException
+- **Handle specific exception types**: Each exception type should have separate handling
+- **Provide different logic**: Different exceptions require different handling approaches
+- **Log appropriately**: Use appropriate log levels for different exception types
+
+## Prohibited Exception Handling
+
+### ❌ DO NOT DO THIS
+```java
+// BAD: Catching base exception classes
+try {
+    // business logic
+} catch (Exception e) {
+    logger.error("Error occurred", e);
+    throw e;
+}
+
+// BAD: Catching RuntimeException
+try {
+    // business logic
+} catch (RuntimeException e) {
+    logger.error("Runtime error", e);
+    throw e;
+}
+
+// BAD: Catching Throwable
+try {
+    // business logic
+} catch (Throwable e) {
+    logger.error("Something went wrong", e);
+    throw e;
+}
+```
+
+## Correct Exception Handling
+
+### ✅ DO THIS
+```java
+// GOOD: Handle specific exception types
+try {
+    // business logic
+} catch (IOException e) {
+    logger.error("File I/O operation failed: {}", fileName, e);
+    throw e;
+} catch (ValidationException e) {
+    logger.warn("Validation failed for: {}", input, e);
+    throw e;
+} catch (IllegalArgumentException e) {
+    logger.error("Invalid argument provided: {}", argument, e);
+    throw e;
+} catch (SecurityException e) {
+    logger.error("Security violation detected", e);
+    throw e;
+}
+```
+
+## Exception Handling Patterns
+
+### 1. Service Layer Exception Handling
+```java
+@Service
+public class TestCaseSetService {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetService.class);
+    
+    public TestCaseSet uploadTestCaseSet(MultipartFile file, String description) throws IOException {
+        logger.info("Starting test case set upload: {}", file.getOriginalFilename());
+        
+        try {
+            // Validate file format
+            validateFileFormat(file);
+            logger.debug("File format validation passed for: {}", file.getOriginalFilename());
+            
+            // Parse file metadata
+            FileMetadata metadata = parseFileMetadata(file);
+            logger.debug("File metadata parsed successfully: {}", metadata);
+            
+            // Save to database
+            TestCaseSet result = saveTestCaseSet(file, metadata, description);
+            logger.info("Test case set uploaded successfully: {} v{}", result.getName(), result.getVersion());
+            
+            return result;
+            
+        } catch (ValidationException e) {
+            logger.warn("File validation failed for: {}", file.getOriginalFilename(), e);
+            throw e;
+        } catch (IOException e) {
+            logger.error("File I/O operation failed for: {}", file.getOriginalFilename(), e);
+            throw e;
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid file parameter provided: {}", file.getOriginalFilename(), e);
+            throw e;
+        } catch (SecurityException e) {
+            logger.error("Security violation during file upload: {}", file.getOriginalFilename(), e);
+            throw e;
+        } catch (DataAccessException e) {
+            logger.error("Database operation failed for file: {}", file.getOriginalFilename(), e);
+            throw new IOException("Database error during upload", e);
+        }
+    }
+}
+```
+
+### 2. Controller Layer Exception Handling
+```java
+@RestController
+@RequestMapping("/api/test-case-sets")
+public class TestCaseSetController {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetController.class);
+    
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadTestCaseSet(@RequestParam("file") MultipartFile file,
+                                            @RequestParam("description") String description) {
+        logger.info("Received upload request for file: {}", file.getOriginalFilename());
+        
+        try {
+            TestCaseSet result = testCaseSetService.uploadTestCaseSet(file, description);
+            logger.info("Upload request completed successfully for: {}", file.getOriginalFilename());
+            return ResponseEntity.ok(result);
+            
+        } catch (ValidationException e) {
+            logger.warn("Upload validation failed for: {}", file.getOriginalFilename(), e);
+            return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", e.getMessage()));
+                
+        } catch (IOException e) {
+            logger.error("File I/O error during upload: {}", file.getOriginalFilename(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("FILE_PROCESSING_ERROR", "File processing failed"));
+                
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid request parameters for upload: {}", file.getOriginalFilename(), e);
+            return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_PARAMETERS", e.getMessage()));
+                
+        } catch (SecurityException e) {
+            logger.error("Security violation during upload: {}", file.getOriginalFilename(), e);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("ACCESS_DENIED", "Access denied"));
+                
+        } catch (DataAccessException e) {
+            logger.error("Database error during upload: {}", file.getOriginalFilename(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("DATABASE_ERROR", "Database operation failed"));
+        }
+    }
+}
+```
+
+### 3. Test Class Exception Handling
+```java
+public class TestCaseSetServiceTest {
+    private static final Logger logger = LoggerFactory.getLogger(TestCaseSetServiceTest.class);
+    
+    @Test
+    public void testUploadTestCaseSet_Success() {
+        logger.debug("Starting successful upload test");
+        
+        try {
+            TestCaseSet result = testCaseSetService.uploadTestCaseSet(validFile, "Test description");
+            
+            assertNotNull(result);
+            assertEquals("test-case", result.getName());
+            assertEquals("v1.0", result.getVersion());
+            logger.debug("Upload test completed successfully");
+            
+        } catch (IOException e) {
+            logger.error("Test failed due to I/O error", e);
+            fail("Test should not throw IOException: " + e.getMessage());
+        } catch (ValidationException e) {
+            logger.error("Test failed due to validation error", e);
+            fail("Test should not throw ValidationException: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            logger.error("Test failed due to invalid argument", e);
+            fail("Test should not throw IllegalArgumentException: " + e.getMessage());
+        }
+    }
+    
+    @Test
+    public void testUploadTestCaseSet_ValidationFailure() {
+        logger.debug("Starting validation failure test");
+        
+        try {
+            testCaseSetService.uploadTestCaseSet(invalidFile, "Test description");
+            fail("Expected ValidationException to be thrown");
+            
+        } catch (ValidationException e) {
+            logger.debug("ValidationException thrown as expected: {}", e.getMessage());
+            assertTrue(e.getMessage().contains("Invalid file format"));
+            
+        } catch (IOException e) {
+            logger.error("Unexpected IOException in validation test", e);
+            fail("Should not throw IOException for validation failure");
+        } catch (IllegalArgumentException e) {
+            logger.error("Unexpected IllegalArgumentException in validation test", e);
+            fail("Should not throw IllegalArgumentException for validation failure");
+        }
+    }
+}
+```
+
+## Exception Types and Handling
+
+### Checked Exceptions
+- **IOException**: File I/O operations, network operations
+- **SQLException**: Database operations
+- **ParseException**: Data parsing operations
+- **ClassNotFoundException**: Class loading operations
+
+### Runtime Exceptions
+- **IllegalArgumentException**: Invalid method parameters
+- **IllegalStateException**: Invalid object state
+- **NullPointerException**: Null reference access
+- **IndexOutOfBoundsException**: Array/collection index errors
+- **UnsupportedOperationException**: Unsupported operations
+
+### Custom Exceptions
+- **ValidationException**: Business validation failures
+- **BusinessException**: Business logic violations
+- **ConfigurationException**: Configuration errors
+- **AuthenticationException**: Authentication failures
+- **AuthorizationException**: Authorization failures
+
+## Log Level Guidelines
+
+### ERROR Level
+- System errors that require immediate attention
+- Database connection failures
+- File system errors
+- Security violations
+- Critical business logic failures
+
+```java
+catch (IOException e) {
+    logger.error("File operation failed: {}", fileName, e);
+    throw e;
+}
+```
+
+### WARN Level
+- Recoverable errors
+- Validation failures
+- Configuration issues
+- Performance warnings
+
+```java
+catch (ValidationException e) {
+    logger.warn("Validation failed for input: {}", input, e);
+    throw e;
+}
+```
+
+### INFO Level
+- Important business events
+- User actions
+- System state changes
+- Successful operations
+
+```java
+logger.info("User {} successfully uploaded file: {}", username, fileName);
+```
+
+### DEBUG Level
+- Detailed debugging information
+- Method entry/exit
+- Variable values
+- Flow control information
+
+```java
+logger.debug("Processing file with size: {} bytes", fileSize);
+```
+
+## Best Practices
+
+### 1. Exception Hierarchy
+- Create specific exception types for different error conditions
+- Use inheritance to group related exceptions
+- Provide meaningful error messages
+
+### 2. Exception Propagation
+- Let exceptions propagate to appropriate handling layers
+- Don't swallow exceptions without proper handling
+- Use checked exceptions for recoverable errors
+
+### 3. Resource Management
+- Use try-with-resources for automatic resource cleanup
+- Ensure proper cleanup in finally blocks
+- Handle resource-related exceptions appropriately
+
+### 4. Error Recovery
+- Implement appropriate recovery strategies
+- Provide fallback mechanisms where possible
+- Log recovery attempts and outcomes
+
+### 5. Testing
+- Test both success and failure scenarios
+- Verify exception handling behavior
+- Ensure proper error messages and logging
+
+## Summary
+
+- **Specificity**: Handle specific exception types, not base classes
+- **Logging**: Use appropriate log levels for different exception types
+- **Context**: Include relevant context information in error messages
+- **Recovery**: Implement appropriate recovery strategies
+- **Testing**: Test exception handling scenarios thoroughly
+- **Documentation**: Document expected exceptions in method signatures

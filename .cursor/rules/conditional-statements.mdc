@@ -1,0 +1,165 @@
+---
+globs: *.java,*.js,*.ts,*.tsx,*.jsx
+description: Conditional statements and loop blocks must use braces
+---
+
+# Conditional Statements and Loop Blocks Rule
+
+## Mandatory Braces Usage
+
+All conditional statements and loop blocks **MUST** use braces `{}`, even for single-line statements.
+
+### ✅ Correct Examples
+
+**Java:**
+```java
+// if statement
+if (testCase != null) {
+    processTestCase(testCase);
+}
+
+// if-else statement
+if (fileFormat.equals("zip")) {
+    processZipFile(file);
+} else {
+    processTarGzFile(file);
+}
+
+// for loop
+for (int i = 0; i < testCases.size(); i++) {
+    TestCase testCase = testCases.get(i);
+    processTestCase(testCase);
+}
+
+// while loop
+while (iterator.hasNext()) {
+    TestCase testCase = iterator.next();
+    processTestCase(testCase);
+}
+
+// do-while loop
+do {
+    processTestCase(testCase);
+    testCase = getNextTestCase();
+} while (testCase != null);
+
+// enhanced for loop
+for (TestCase testCase : testCases) {
+    processTestCase(testCase);
+}
+```
+
+**JavaScript/TypeScript:**
+```javascript
+// if statement
+if (testCaseSet) {
+    processTestCaseSet(testCaseSet);
+}
+
+// if-else statement
+if (file.type === 'application/zip') {
+    processZipFile(file);
+} else {
+    processTarGzFile(file);
+}
+
+// for loop
+for (let i = 0; i < testCases.length; i++) {
+    const testCase = testCases[i];
+    processTestCase(testCase);
+}
+
+// while loop
+while (testCases.length > 0) {
+    const testCase = testCases.pop();
+    processTestCase(testCase);
+}
+
+// for...of loop
+for (const testCase of testCases) {
+    processTestCase(testCase);
+}
+
+// for...in loop
+for (const key in testCaseSet) {
+    const value = testCaseSet[key];
+    processTestCaseSetProperty(key, value);
+}
+```
+
+### ❌ Incorrect Examples
+
+**Java:**
+```java
+// WRONG - Missing braces
+if (condition)
+    doSomething();
+
+// WRONG - Missing braces
+if (condition)
+    doSomething();
+else
+    doSomethingElse();
+
+// WRONG - Missing braces
+for (int i = 0; i < 10; i++)
+    processItem(i);
+
+// WRONG - Missing braces
+while (condition)
+    processData();
+```
+
+**JavaScript/TypeScript:**
+```javascript
+// WRONG - Missing braces
+if (condition)
+    doSomething();
+
+// WRONG - Missing braces
+if (condition)
+    doSomething();
+else
+    doSomethingElse();
+
+// WRONG - Missing braces
+for (let i = 0; i < 10; i++)
+    processItem(i);
+
+// WRONG - Missing braces
+while (condition)
+    processData();
+```
+
+## Rationale
+
+1. **Consistency**: Ensures consistent code style across the entire codebase
+2. **Maintainability**: Makes it easier to add additional statements later without introducing bugs
+3. **Readability**: Improves code readability and reduces cognitive load
+4. **Error Prevention**: Prevents common bugs that occur when adding statements to single-line blocks
+5. **Code Review**: Makes code reviews more reliable by eliminating ambiguity
+
+## Enforcement
+
+This rule applies to all conditional statements and loop constructs:
+- `if` statements
+- `if-else` statements
+- `if-else if-else` chains
+- `for` loops (traditional and enhanced)
+- `while` loops
+- `do-while` loops
+- `for...of` loops (JavaScript/TypeScript)
+- `for...in` loops (JavaScript/TypeScript)
+
+## Exception
+
+The only exception is when using ternary operators for simple conditional expressions:
+```java
+// This is acceptable
+String result = condition ? "true" : "false";
+```
+
+```javascript
+// This is acceptable
+const result = condition ? "true" : "false";
+```

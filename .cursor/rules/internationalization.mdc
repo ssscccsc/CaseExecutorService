@@ -1,0 +1,53 @@
+---
+globs: *.json,*.tsx,*.ts
+description: Internationalization (i18n) guidelines
+---
+
+# Internationalization Guidelines
+
+## Language Support
+- **Chinese (zh)**: Primary language
+- **English (en)**: Secondary language
+- **Fallback**: English if translation missing
+
+## File Structure
+- **Language Files**: [frontend/src/locales/](mdc:frontend/src/locales/)
+- **Configuration**: [frontend/src/i18n/index.ts](mdc:frontend/src/i18n/index.ts)
+- **Context**: [frontend/src/contexts/I18nContext.tsx](mdc:frontend/src/contexts/I18nContext.tsx)
+- **Hook**: [frontend/src/hooks/useTranslation.ts](mdc:frontend/src/hooks/useTranslation.ts)
+
+## Translation Keys Structure
+```json
+{
+  "app": { "title": "应用标题" },
+  "navigation": { "home": "首页" },
+  "common": { "save": "保存", "cancel": "取消" },
+  "userRole": { "title": "用户角色管理" },
+  "testCaseSet": { "title": "用例集管理" }
+}
+```
+
+## Usage Guidelines
+- Use `useTranslation` hook for translations
+- Use specific translation functions (translateUserRole, translateTestCaseSet)
+- Never hardcode text strings in components
+- Use meaningful translation keys
+- Keep translations consistent across components
+
+## Ant Design Integration
+- Use ConfigProvider for component localization
+- Import locale files: `zhCN`, `enUS`
+- Switch locale based on current language
+
+## Language Switching
+- Store language preference in localStorage
+- Detect browser language on first visit
+- Provide language switcher in header
+- Update Ant Design locale when language changes
+
+## Translation Rules
+- Functions must not exceed 50 lines
+- Translation files must not exceed 200 lines
+- Use consistent terminology
+- Provide context for translators
+- Test both languages thoroughly

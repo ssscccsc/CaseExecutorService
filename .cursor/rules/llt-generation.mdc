@@ -1,0 +1,65 @@
+---
+alwaysApply: true
+description: LLT (Unit Testing) generation requirements and guidelines
+---
+
+# LLT Generation Requirements
+
+## MANDATORY Testing Rules
+- **Generate unit tests for ALL new backend code**
+- **Create test files simultaneously with implementation**
+- **Test coverage: Entities, Services, Controllers**
+- **EXCLUDE: Repository layer (no tests needed)**
+
+## MANDATORY Documentation Rules
+- **Note**: See yaml-documentation.mdc for YAML API documentation requirements
+
+## Test File Structure
+```
+src/main/java/com/dialtest/center/
+├── entity/EntityName.java
+├── service/ServiceName.java
+└── controller/ControllerName.java
+
+src/test/java/com/dialtest/center/
+├── entity/EntityNameTest.java
+├── service/ServiceNameTest.java
+└── controller/ControllerNameTest.java
+```
+
+## Test Generation Guidelines
+- **Test Framework**: JUnit 4 + Mockito
+- **Test Method Limit**: ≤ 50 lines per test method
+- **Test File Limit**: ≤ 200 lines per test file
+- **Test Naming**: `testMethodName_Scenario_ExpectedResult`
+- **Test Structure**: Follow AAA pattern (Arrange, Act, Assert)
+- **Javadoc**: See javadoc.mdc for Javadoc requirements
+
+## Entity Tests
+- Test constructors (default and parameterized)
+- Test getters and setters
+- Test equals() and hashCode()
+- Test toString() method
+- Test validation logic
+
+## Service Tests
+- Mock repository dependencies
+- Test business logic methods
+- Test success and failure scenarios
+- Test exception handling
+- Use @Mock and @InjectMocks annotations
+
+## Controller Tests
+- Mock service dependencies
+- Test HTTP endpoints (GET, POST, PUT, DELETE)
+- Test request/response handling
+- Test error responses
+- Test file upload/download scenarios
+
+## Test Quality Standards
+- Each test should test one specific functionality
+- Use descriptive test method names
+- Include both positive and negative test cases
+- Mock external dependencies properly
+- Assert expected outcomes clearly
+- Follow consistent test structure

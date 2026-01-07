@@ -1,0 +1,518 @@
+---
+globs: *.java,*.js,*.ts,*.tsx,*.jsx
+description: Conditional statements with else if branches must have a final else branch
+---
+
+# Else Branch Rule for Conditional Statements
+
+## MANDATORY Else Branch Rules
+- **Always add else branch**: When using else if chains, must include a final else branch
+- **Handle all cases**: Ensure all possible conditions are covered
+- **Explicit handling**: Make unexpected cases explicit rather than implicit
+- **Error prevention**: Prevent silent failures and unexpected behavior
+
+## Java Else Branch Rules
+
+### ✅ Correct Examples
+
+**Basic else if with else:**
+```java
+public String getFileFormat(String fileName) {
+    if (fileName.endsWith(".zip")) {
+        return "zip";
+    } else if (fileName.endsWith(".tar.gz")) {
+        return "tar.gz";
+    } else if (fileName.endsWith(".gz")) {
+        return "gz";
+    } else {
+        return "unknown";
+    }
+}
+```
+
+**Entity validation with else:**
+```java
+public String validateTestCase(TestCase testCase) {
+    if (testCase == null) {
+        return "Test case cannot be null";
+    } else if (testCase.getCaseNumber() == null || testCase.getCaseNumber().isEmpty()) {
+        return "Case number is required";
+    } else if (testCase.getCaseName() == null || testCase.getCaseName().isEmpty()) {
+        return "Case name is required";
+    } else if (testCase.getNetworkTopology() == null || testCase.getNetworkTopology().isEmpty()) {
+        return "Network topology is required";
+    } else {
+        return "Valid";
+    }
+}
+```
+
+**Service method with else:**
+```java
+public void processTestCaseSet(TestCaseSet testCaseSet) {
+    if (testCaseSet == null) {
+        logger.warn("Test case set is null");
+        return;
+    } else if (testCaseSet.getFileContent() == null) {
+        logger.warn("File content is null for test case set: {}", testCaseSet.getName());
+        return;
+    } else if (testCaseSet.getFileContent().length == 0) {
+        logger.warn("File content is empty for test case set: {}", testCaseSet.getName());
+        return;
+    } else {
+        logger.info("Processing test case set: {}", testCaseSet.getName());
+        // Process the test case set
+    }
+}
+```
+
+**Controller method with else:**
+```java
+@GetMapping("/testcases/{id}")
+public ResponseEntity<?> getTestCase(@PathVariable Long id) {
+    if (id == null || id <= 0) {
+        return ResponseEntity.badRequest().body("Invalid ID");
+    } else if (!testCaseService.existsById(id)) {
+        return ResponseEntity.notFound().build();
+    } else {
+        TestCase testCase = testCaseService.findById(id);
+        return ResponseEntity.ok(testCase);
+    }
+}
+```
+
+**Exception handling with else:**
+```java
+public void handleException(Exception e) {
+    if (e instanceof IllegalArgumentException) {
+        logger.warn("Invalid argument: {}", e.getMessage());
+    } else if (e instanceof DataAccessException) {
+        logger.error("Database error: {}", e.getMessage());
+    } else if (e instanceof IOException) {
+        logger.error("IO error: {}", e.getMessage());
+    } else {
+        logger.error("Unexpected error: {}", e.getMessage(), e);
+    }
+}
+```
+
+### ❌ Incorrect Examples
+
+**Missing else branch:**
+```java
+// WRONG - No else branch
+public String getStatus(int code) {
+    if (code == 200) {
+        return "Success";
+    } else if (code == 404) {
+        return "Not Found";
+    } else if (code == 500) {
+        return "Internal Server Error";
+    }
+    // Missing else branch - what happens for other codes?
+}
+```
+
+**Incomplete validation:**
+```java
+// WRONG - No else branch
+public String validateTestCase(TestCase testCase) {
+    if (testCase == null) {
+        return "Test case cannot be null";
+    } else if (testCase.getCaseNumber() == null || testCase.getCaseNumber().isEmpty()) {
+        return "Case number is required";
+    } else if (testCase.getCaseName() == null || testCase.getCaseName().isEmpty()) {
+        return "Case name is required";
+    }
+    // Missing else branch - what if all conditions pass?
+}
+```
+
+**Unhandled cases:**
+```java
+// WRONG - No else branch
+public void processTestCaseSet(TestCaseSet testCaseSet) {
+    if (testCaseSet == null) {
+        logger.warn("Test case set is null");
+        return;
+    } else if (testCaseSet.getFileContent() == null) {
+        logger.warn("File content is null");
+        return;
+    }
+    // Missing else branch - what if testCaseSet is valid?
+}
+```
+
+## JavaScript/TypeScript Else Branch Rules
+
+### ✅ Correct Examples
+
+**Basic else if with else:**
+```javascript
+function getStatus(code) {
+    if (code === 200) {
+        return "Success";
+    } else if (code === 404) {
+        return "Not Found";
+    } else if (code === 500) {
+        return "Internal Server Error";
+    } else {
+        return "Unknown Status";
+    }
+}
+```
+
+**Type checking with else:**
+```typescript
+function processValue(value: any): string {
+    if (typeof value === 'string') {
+        return `String: ${value}`;
+    } else if (typeof value === 'number') {
+        return `Number: ${value}`;
+    } else if (typeof value === 'boolean') {
+        return `Boolean: ${value}`;
+    } else if (value === null) {
+        return "Null value";
+    } else if (value === undefined) {
+        return "Undefined value";
+    } else {
+        return `Unknown type: ${typeof value}`;
+    }
+}
+```
+
+**React component with else:**
+```typescript
+function TestCaseStatus({ status }: { status: string }) {
+    if (status === 'pending') {
+        return <span className="status-pending">Pending</span>;
+    } else if (status === 'running') {
+        return <span className="status-running">Running</span>;
+    } else if (status === 'completed') {
+        return <span className="status-completed">Completed</span>;
+    } else if (status === 'failed') {
+        return <span className="status-failed">Failed</span>;
+    } else {
+        return <span className="status-unknown">Unknown</span>;
+    }
+}
+```
+
+**Service method with else:**
+```typescript
+async function uploadTestCaseSet(file: File, business: string): Promise<ApiResponse> {
+    if (!file) {
+        return { success: false, message: "No file provided" };
+    } else if (file.size === 0) {
+        return { success: false, message: "File is empty" };
+    } else if (file.size > MAX_FILE_SIZE) {
+        return { success: false, message: "File too large" };
+    } else if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        return { success: false, message: "Invalid file type" };
+    } else {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('business', business);
+            
+            const response = await fetch('/api/testcasesets/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            return await response.json();
+        } catch (error) {
+            return { success: false, message: "Upload failed" };
+        }
+    }
+}
+```
+
+### ❌ Incorrect Examples
+
+**Missing else branch:**
+```javascript
+// WRONG - No else branch
+function getStatus(code) {
+    if (code === 200) {
+        return "Success";
+    } else if (code === 404) {
+        return "Not Found";
+    } else if (code === 500) {
+        return "Internal Server Error";
+    }
+    // Missing else branch - what happens for other codes?
+}
+```
+
+**Incomplete type checking:**
+```typescript
+// WRONG - No else branch
+function processValue(value: any): string {
+    if (typeof value === 'string') {
+        return `String: ${value}`;
+    } else if (typeof value === 'number') {
+        return `Number: ${value}`;
+    } else if (typeof value === 'boolean') {
+        return `Boolean: ${value}`;
+    }
+    // Missing else branch - what about null, undefined, objects, etc.?
+}
+```
+
+**Unhandled React states:**
+```typescript
+// WRONG - No else branch
+function TestCaseStatus({ status }: { status: string }) {
+    if (status === 'pending') {
+        return <span className="status-pending">Pending</span>;
+    } else if (status === 'running') {
+        return <span className="status-running">Running</span>;
+    } else if (status === 'completed') {
+        return <span className="status-completed">Completed</span>;
+    }
+    // Missing else branch - what about 'failed', 'cancelled', etc.?
+}
+```
+
+## Best Practices
+
+### 1. Explicit Error Handling
+
+**Java:**
+```java
+public String processRequest(String request) {
+    if (request == null) {
+        return "Request cannot be null";
+    } else if (request.isEmpty()) {
+        return "Request cannot be empty";
+    } else if (request.length() > MAX_LENGTH) {
+        return "Request too long";
+    } else {
+        // Process valid request
+        return processValidRequest(request);
+    }
+}
+```
+
+**JavaScript/TypeScript:**
+```typescript
+function processRequest(request: string): string {
+    if (!request) {
+        return "Request cannot be null or empty";
+    } else if (request.length > MAX_LENGTH) {
+        return "Request too long";
+    } else if (!isValidFormat(request)) {
+        return "Invalid request format";
+    } else {
+        // Process valid request
+        return processValidRequest(request);
+    }
+}
+```
+
+### 2. Logging and Monitoring
+
+**Java:**
+```java
+public void handleUserAction(UserAction action) {
+    if (action == null) {
+        logger.warn("Received null user action");
+    } else if (action.getType() == UserActionType.LOGIN) {
+        logger.info("User login: {}", action.getUserId());
+        handleLogin(action);
+    } else if (action.getType() == UserActionType.LOGOUT) {
+        logger.info("User logout: {}", action.getUserId());
+        handleLogout(action);
+    } else if (action.getType() == UserActionType.UPLOAD) {
+        logger.info("User upload: {}", action.getUserId());
+        handleUpload(action);
+    } else {
+        logger.warn("Unknown user action type: {}", action.getType());
+        // Handle unknown action type
+    }
+}
+```
+
+**JavaScript/TypeScript:**
+```typescript
+function handleUserAction(action: UserAction): void {
+    if (!action) {
+        console.warn("Received null user action");
+    } else if (action.type === 'LOGIN') {
+        console.log(`User login: ${action.userId}`);
+        handleLogin(action);
+    } else if (action.type === 'LOGOUT') {
+        console.log(`User logout: ${action.userId}`);
+        handleLogout(action);
+    } else if (action.type === 'UPLOAD') {
+        console.log(`User upload: ${action.userId}`);
+        handleUpload(action);
+    } else {
+        console.warn(`Unknown user action type: ${action.type}`);
+        // Handle unknown action type
+    }
+}
+```
+
+### 3. Default Values and Fallbacks
+
+**Java:**
+```java
+public String getDisplayName(User user) {
+    if (user == null) {
+        return "Unknown User";
+    } else if (user.getDisplayName() != null && !user.getDisplayName().isEmpty()) {
+        return user.getDisplayName();
+    } else if (user.getUsername() != null && !user.getUsername().isEmpty()) {
+        return user.getUsername();
+    } else if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+        return user.getEmail();
+    } else {
+        return "User " + user.getId();
+    }
+}
+```
+
+**JavaScript/TypeScript:**
+```typescript
+function getDisplayName(user: User): string {
+    if (!user) {
+        return "Unknown User";
+    } else if (user.displayName) {
+        return user.displayName;
+    } else if (user.username) {
+        return user.username;
+    } else if (user.email) {
+        return user.email;
+    } else {
+        return `User ${user.id}`;
+    }
+}
+```
+
+### 4. State Machine Handling
+
+**Java:**
+```java
+public void handleTestCaseState(TestCase testCase, TestCaseState newState) {
+    if (testCase == null) {
+        logger.warn("Test case is null");
+    } else if (newState == null) {
+        logger.warn("New state is null for test case: {}", testCase.getCaseNumber());
+    } else if (testCase.getState() == TestCaseState.PENDING && newState == TestCaseState.RUNNING) {
+        logger.info("Starting test case: {}", testCase.getCaseNumber());
+        startTestCase(testCase);
+    } else if (testCase.getState() == TestCaseState.RUNNING && newState == TestCaseState.COMPLETED) {
+        logger.info("Completing test case: {}", testCase.getCaseNumber());
+        completeTestCase(testCase);
+    } else if (testCase.getState() == TestCaseState.RUNNING && newState == TestCaseState.FAILED) {
+        logger.info("Failing test case: {}", testCase.getCaseNumber());
+        failTestCase(testCase);
+    } else {
+        logger.warn("Invalid state transition from {} to {} for test case: {}", 
+                   testCase.getState(), newState, testCase.getCaseNumber());
+        // Handle invalid state transition
+    }
+}
+```
+
+**JavaScript/TypeScript:**
+```typescript
+function handleTestCaseState(testCase: TestCase, newState: TestCaseState): void {
+    if (!testCase) {
+        console.warn("Test case is null");
+    } else if (!newState) {
+        console.warn(`New state is null for test case: ${testCase.caseNumber}`);
+    } else if (testCase.state === 'PENDING' && newState === 'RUNNING') {
+        console.log(`Starting test case: ${testCase.caseNumber}`);
+        startTestCase(testCase);
+    } else if (testCase.state === 'RUNNING' && newState === 'COMPLETED') {
+        console.log(`Completing test case: ${testCase.caseNumber}`);
+        completeTestCase(testCase);
+    } else if (testCase.state === 'RUNNING' && newState === 'FAILED') {
+        console.log(`Failing test case: ${testCase.caseNumber}`);
+        failTestCase(testCase);
+    } else {
+        console.warn(`Invalid state transition from ${testCase.state} to ${newState} for test case: ${testCase.caseNumber}`);
+        // Handle invalid state transition
+    }
+}
+```
+
+## Common Patterns
+
+### 1. Validation Chain
+```java
+public ValidationResult validateTestCase(TestCase testCase) {
+    if (testCase == null) {
+        return ValidationResult.error("Test case cannot be null");
+    } else if (testCase.getCaseNumber() == null || testCase.getCaseNumber().isEmpty()) {
+        return ValidationResult.error("Case number is required");
+    } else if (testCase.getCaseName() == null || testCase.getCaseName().isEmpty()) {
+        return ValidationResult.error("Case name is required");
+    } else if (testCase.getNetworkTopology() == null || testCase.getNetworkTopology().isEmpty()) {
+        return ValidationResult.error("Network topology is required");
+    } else if (testCase.getBusinessCategory() == null || testCase.getBusinessCategory().isEmpty()) {
+        return ValidationResult.error("Business category is required");
+    } else if (testCase.getApp() == null || testCase.getApp().isEmpty()) {
+        return ValidationResult.error("App is required");
+    } else if (testCase.getTestSteps() == null || testCase.getTestSteps().isEmpty()) {
+        return ValidationResult.error("Test steps are required");
+    } else if (testCase.getExpectedResult() == null || testCase.getExpectedResult().isEmpty()) {
+        return ValidationResult.error("Expected result is required");
+    } else {
+        return ValidationResult.success();
+    }
+}
+```
+
+### 2. Error Code Mapping
+```java
+public String getErrorMessage(int errorCode) {
+    if (errorCode == 1001) {
+        return "Invalid file format";
+    } else if (errorCode == 1002) {
+        return "File too large";
+    } else if (errorCode == 1003) {
+        return "File corrupted";
+    } else if (errorCode == 1004) {
+        return "Permission denied";
+    } else if (errorCode == 1005) {
+        return "Network error";
+    } else if (errorCode == 1006) {
+        return "Server error";
+    } else {
+        return "Unknown error: " + errorCode;
+    }
+}
+```
+
+### 3. Configuration Handling
+```java
+public String getConfigValue(String key, String defaultValue) {
+    if (key == null || key.isEmpty()) {
+        return defaultValue;
+    } else if (config.containsKey(key)) {
+        String value = config.get(key);
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        } else {
+            return value;
+        }
+    } else {
+        return defaultValue;
+    }
+}
+```
+
+## Summary
+
+- **Always add else branch**: When using else if chains, include a final else branch
+- **Handle all cases**: Ensure all possible conditions are covered
+- **Explicit error handling**: Make unexpected cases explicit
+- **Logging and monitoring**: Log unexpected cases for debugging
+- **Default values**: Provide fallback values for unexpected cases
+- **State validation**: Validate state transitions and handle invalid states
+- **Error prevention**: Prevent silent failures and unexpected behavior
+- **Code clarity**: Make the code's behavior explicit and predictable

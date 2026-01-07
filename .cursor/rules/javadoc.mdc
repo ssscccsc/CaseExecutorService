@@ -1,0 +1,329 @@
+---
+globs: *.java
+description: Javadoc documentation requirements for Java classes and methods
+---
+
+# Javadoc Documentation Requirements
+
+## Overview
+This rule defines mandatory Javadoc documentation standards for all Java files in the project, including file headers, import organization, method documentation, and code formatting.
+
+## MANDATORY Javadoc Rules
+- **Public elements**: All public classes, methods, fields, and constructors must have Javadoc comments
+- **Protected elements**: All protected methods, fields, and constructors must have Javadoc comments
+- **Documentation completeness**: Javadoc must provide clear description of functionality
+- **Parameter documentation**: All parameters must be documented with @param tags
+- **Return documentation**: Return values must be documented with @return tags
+- **Exception documentation**: Thrown exceptions must be documented with @throws tags
+- **Date accuracy**: @since tag must use current date in YYYY-MM-DD format when generating code
+
+## File Structure Requirements
+
+### Copyright Header (MANDATORY)
+- **All Java files must have copyright header comment**
+- **Copyright header must be placed at the very top of the file**
+- **Copyright header must be placed before package declaration**
+
+```java
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2020-2020. All rights reserved.
+ */
+
+package com.example.package;
+```
+
+### Import Organization (MANDATORY)
+- **Import packages must be sorted in specific order**
+- **Each group must be separated by one empty line**
+- **Use alphabetical order within each group**
+
+#### Import Package Order
+1. **Android packages** (android.*)
+2. **Huawei company packages** (com.huawei.*)
+3. **Other commercial organizations** (com.company.*)
+4. **Other open source organizations** (org.apache.*, org.springframework.*, etc.)
+5. **Other open source third-party** (com.fasterxml.*, com.google.*, etc.)
+6. **Net/Org open source organizations** (net.sourceforge.*, org.junit.*, etc.)
+7. **Java standard packages** (java.*, javax.*)
+
+#### Import Example
+```java
+import com.huawei.dialtest.center.entity.Role;
+import com.huawei.dialtest.center.entity.UserRole;
+import com.huawei.dialtest.center.service.UserRoleService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import javax.persistence.EntityNotFoundException;
+import javax.validation.Valid;
+```
+
+## Javadoc Documentation (MANDATORY)
+
+### Class Documentation
+- **All public classes must have Javadoc comments**
+- **Use standard Javadoc format with /** */
+- **Include @author and @since tags**
+- **@since tag must use current date in YYYY-MM-DD format when generating code**
+
+```java
+/**
+ * 用户角色控制器，提供用户角色管理的REST API接口
+ * 支持用户角色的创建、更新、删除、查询等操作
+ * 提供权限检查和执行机用户统计功能
+ *
+ * @author g00940940
+ * @since 2025-09-09
+ */
+@RestController
+@RequestMapping("/api/user-roles")
+public class UserRoleController {
+    // class implementation
+}
+```
+
+### Method Documentation
+- **All public methods must have Javadoc comments**
+- **Provide clear description of method functionality**
+- **Use @param, @return, @throws tags as needed**
+- **One empty line between description and tags**
+- **Empty line between description and tags must be completely empty, containing no characters (spaces, tabs, etc.)**
+
+#### Method Javadoc Format
+```java
+/**
+ * 获取用户角色列表
+ *
+ * @param username 用户名（可选，不传则返回所有）
+ * @return 用户角色列表
+ */
+@GetMapping
+public ResponseEntity<List<UserRole>> getUserRoles(
+        @RequestParam(required = false) String username) {
+    // method implementation
+}
+```
+
+#### Method with Parameters and Exceptions
+```java
+/**
+ * 创建用户角色
+ *
+ * @param request 用户角色请求，不能为空
+ * @return 创建的用户角色
+ * @throws IllegalArgumentException 当请求参数无效时抛出
+ */
+@PostMapping
+public ResponseEntity<UserRole> createUserRole(@Valid @RequestBody UserRoleRequest request) {
+    // method implementation
+}
+```
+
+## Code Formatting Rules (MANDATORY)
+
+### Method Declaration Formatting
+- **No empty lines between Javadoc comments and method declaration**
+- **No empty lines between method declaration and opening brace**
+- **Method declaration and implementation must be adjacent**
+
+### Class Structure Formatting
+- **No empty lines between class definition and variable declaration**
+- **No empty lines between last statement and closing brace in try blocks**
+- **All Java files must end with an empty line**
+
+### Empty Line Formatting (MANDATORY)
+- **Empty lines must remain empty, containing no characters**
+- **Empty lines cannot contain spaces, tabs, or other whitespace characters**
+- **Empty lines must be completely empty**
+- **Empty lines between Javadoc description and tags must also be completely empty**
+
+#### Javadoc Empty Line Validation (MANDATORY)
+- **All Javadoc empty lines must use `*` instead of `* ` (no space after asterisk)**
+- **Check command**: `grep -n "^ \* $" *.java` should return empty result
+- **Fix command**: `sed -i 's/^ \* $/ */' *.java`
+- **Verify command**: `hexdump -C` to check empty line content, should only contain asterisk and newline
+
+#### Correct Formatting Examples
+
+**Class Definition:**
+```java
+public class UserRoleController {
+    private static final Logger logger = LoggerFactory.getLogger(UserRoleController.class);
+    
+    @Autowired
+    private UserRoleService userRoleService;
+}
+```
+
+**Try Block:**
+```java
+try {
+    // business logic
+    return ResponseEntity.ok(result);
+} catch (Exception e) {
+    // error handling
+}
+```
+
+**File Ending:**
+```java
+public class ExampleClass {
+    // class implementation
+}
+// Empty line at the end
+```
+
+**Empty Line Format:**
+```java
+// Correct - Empty line contains no characters
+public class ExampleClass {
+    private String field;
+    
+    public void method() {
+        // implementation
+    }
+}
+
+// Incorrect - Empty line contains spaces or tabs
+public class ExampleClass {
+    private String field;
+    
+    public void method() {
+        // implementation
+    }
+}
+```
+
+**Javadoc Empty Line Format:**
+```java
+// Correct - Empty line between description and tags contains no characters
+/**
+ * 获取用户角色列表
+ *
+ * @param username 用户名
+ * @return 用户角色列表
+ */
+public List<UserRole> getUserRoles(String username) {
+    // method implementation
+}
+
+// Incorrect - Empty line between description and tags contains spaces
+/**
+ * 获取用户角色列表
+ * 
+ * @param username 用户名
+ * @return 用户角色列表
+ */
+public List<UserRole> getUserRoles(String username) {
+    // method implementation
+}
+```
+
+**Javadoc Empty Line Validation:**
+```bash
+# Check for Javadoc empty lines containing spaces
+grep -n "^ \* $" *.java
+
+# Fix all Javadoc empty lines containing spaces
+find . -name "*.java" -exec sed -i 's/^ \* $/ */' {} \;
+
+# Verify fix results
+grep -n "^ \* $" *.java  # Should return empty result
+```
+
+## Javadoc Standards Summary
+
+### Class Level
+- Use @author "g00940940" and @since "YYYY-MM-DD" format (use current date when generating code)
+- Provide clear, concise class description in Chinese
+
+### Date Format Requirements
+- **@since tag**: Must use current date in YYYY-MM-DD format when generating code
+- **Date accuracy**: Always use the actual date when the code is being generated
+- **Format consistency**: Use YYYY-MM-DD format consistently across all files
+
+### Method Level
+- Only use @param, @return, @throws tags as needed
+- Use Chinese for descriptions
+- Document all parameters with @param
+- Document return values with @return
+- Document thrown exceptions with @throws
+- One empty line between description and tags
+- Empty line between description and tags must be completely empty, containing no characters
+
+### Formatting
+- No empty lines between Javadoc and method signature
+- No empty lines between method signature and opening brace
+- No empty lines between class definition and variable declaration
+- No empty lines between last statement and closing brace in try blocks
+- All Java files must end with an empty line
+
+### Validation Requirements (MANDATORY)
+- **Javadoc empty line validation**: Use `grep -n "^ \* $" *.java` to check, must return empty result
+- **Empty line content validation**: Use `hexdump -C` to check, empty lines can only contain asterisk and newline
+- **Automatic fix**: Use `sed -i 's/^ \* $/ */' *.java` to fix all Javadoc empty lines containing spaces
+- **Automation script**: Use `./scripts/validate-javadoc.sh` to automatically check and fix all Javadoc empty line format issues
+- **Comprehensive validation**: Use `./scripts/validate-code-format.sh` to validate all code format rules
+
+## Complete Example
+
+```java
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2020-2020. All rights reserved.
+ */
+
+package com.huawei.dialtest.center.controller;
+
+import com.huawei.dialtest.center.entity.UserRole;
+import com.huawei.dialtest.center.service.UserRoleService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 用户角色控制器，提供用户角色管理的REST API接口
+ * 支持用户角色的创建、更新、删除、查询等操作
+ *
+ * @author g00940940
+ * @since 2025-09-09
+ */
+@RestController
+@RequestMapping("/api/user-roles")
+public class UserRoleController {
+    private static final Logger logger = LoggerFactory.getLogger(UserRoleController.class);
+    
+    @Autowired
+    private UserRoleService userRoleService;
+    
+    /**
+     * 获取用户角色列表
+     *
+     * @param username 用户名（可选，不传则返回所有）
+     * @return 用户角色列表
+     */
+    @GetMapping
+    public ResponseEntity<List<UserRole>> getUserRoles(
+            @RequestParam(required = false) String username) {
+        try {
+            List<UserRole> userRoles = userRoleService.getUserRoles(username);
+            return ResponseEntity.ok(userRoles);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid request parameters: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+}
+```

@@ -1,0 +1,43 @@
+---
+globs: *.sql
+description: Database schema and migration guidelines
+---
+
+# Database Development Guidelines
+
+## Database Structure
+- **Main Database**: PostgreSQL
+- **Initialization**: [database/init.sql](mdc:database/init.sql)
+- **Migrations**: [database/migration_add_file_format.sql](mdc:database/migration_add_file_format.sql)
+
+## Key Tables
+- `test_case_set` - Stores test case sets with file content and format
+- `user_role` - User role management
+- `role` - Role enumeration (ADMIN, OPERATOR, EXECUTOR)
+
+## Schema Guidelines
+- Use proper data types (VARCHAR, BIGINT, BYTEA, TIMESTAMP)
+- Add appropriate constraints (NOT NULL, UNIQUE, FOREIGN KEY)
+- Create indexes for frequently queried columns
+- Use proper naming conventions (snake_case for columns)
+- Add comments for table and column descriptions
+
+## File Storage
+- Use BYTEA type for storing file content
+- Store file format (zip/tar.gz) in separate column
+- Add file_size column for metadata
+- Use proper Content-Type headers for downloads
+
+## Migration Rules
+- Create migration scripts for schema changes
+- Use ALTER TABLE for adding columns
+- Set default values for new columns when possible
+- Add indexes for new columns if needed
+- Test migrations on development database first
+- Document migration purpose and changes
+
+## Connection Configuration
+- Database URL: `jdbc:postgresql://localhost:5432/dialtestcenter`
+- Username: `zhengtengsong`
+- Driver: `org.postgresql.Driver`
+- Use connection pooling for production

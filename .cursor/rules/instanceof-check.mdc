@@ -1,0 +1,415 @@
+---
+globs: *.java,*.js,*.ts,*.tsx,*.jsx
+description: Must use instanceof check before downcasting reference types
+---
+
+# Instanceof Check Before Downcasting Rule
+
+## MANDATORY Downcasting Rules
+- **Always use instanceof check**: Before any downcasting operation, must verify the object type using instanceof
+- **Prevent ClassCastException**: Avoid runtime ClassCastException by checking object type first
+- **Type safety**: Ensure type safety in all casting operations
+- **Null safety**: Handle null references appropriately
+
+## Java Downcasting Rules
+
+### ✅ Correct Examples
+
+**Basic instanceof check:**
+```java
+public void processTestCaseObject(Object obj) {
+    if (obj instanceof TestCase) {
+        TestCase testCase = (TestCase) obj;
+        logger.info("Processing test case: {}", testCase.getCaseNumber());
+    } else if (obj instanceof TestCaseSet) {
+        TestCaseSet testCaseSet = (TestCaseSet) obj;
+        logger.info("Processing test case set: {}", testCaseSet.getName());
+    } else if (obj instanceof UserRole) {
+        UserRole userRole = (UserRole) obj;
+        logger.info("Processing user role: {}", userRole.getUsername());
+    } else {
+        logger.warn("Unknown object type: {}", obj.getClass().getSimpleName());
+    }
+}
+```
+
+**Entity equals method:**
+```java
+@Override
+public boolean equals(Object o) {
+    if (this == o) {
+        return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+        return false;
+    }
+    TestCaseSet that = (TestCaseSet) o;
+    return Objects.equals(id, that.id) &&
+           Objects.equals(name, that.name) &&
+           Objects.equals(version, that.version);
+}
+```
+
+**Service layer type checking:**
+```java
+public void processTestCase(Object testCase) {
+    if (testCase instanceof TestCase) {
+        TestCase tc = (TestCase) testCase;
+        logger.info("Processing test case: {}", tc.getCaseNumber());
+        // Process the test case
+    } else {
+        logger.warn("Invalid test case type: {}", testCase.getClass().getSimpleName());
+        throw new IllegalArgumentException("Expected TestCase object");
+    }
+}
+```
+
+**Collection processing:**
+```java
+public void processItems(List<Object> items) {
+    for (Object item : items) {
+        if (item instanceof TestCaseSet) {
+            TestCaseSet testCaseSet = (TestCaseSet) item;
+            processTestCaseSet(testCaseSet);
+        } else if (item instanceof UserRole) {
+            UserRole userRole = (UserRole) item;
+            processUserRole(userRole);
+        } else {
+            logger.warn("Unknown item type: {}", item.getClass().getSimpleName());
+        }
+    }
+}
+```
+
+**Generic type checking:**
+```java
+public <T> T safeCast(Object obj, Class<T> targetClass) {
+    if (obj == null) {
+        return null;
+    }
+    if (targetClass.isInstance(obj)) {
+        return targetClass.cast(obj);
+    }
+    throw new ClassCastException("Cannot cast " + obj.getClass() + " to " + targetClass);
+}
+```
+
+### ❌ Incorrect Examples
+
+**Direct casting without instanceof:**
+```java
+// WRONG - No instanceof check
+public void processObject(Object obj) {
+    String str = (String) obj;  // ClassCastException risk
+    System.out.println(str.length());
+}
+
+// WRONG - No instanceof check
+public void processList(Object obj) {
+    List<String> list = (List<String>) obj;  // ClassCastException risk
+    for (String item : list) {
+        System.out.println(item);
+    }
+}
+```
+
+**Unsafe entity casting:**
+```java
+// WRONG - No instanceof check
+@Override
+public boolean equals(Object o) {
+    if (this == o) return true;
+    TestCaseSet that = (TestCaseSet) o;  // ClassCastException risk
+    return Objects.equals(id, that.id);
+}
+```
+
+**Unsafe service method:**
+```java
+// WRONG - No instanceof check
+public void processTestCase(Object testCase) {
+    TestCase tc = (TestCase) testCase;  // ClassCastException risk
+    logger.info("Processing test case: {}", tc.getCaseNumber());
+}
+```
+
+## JavaScript/TypeScript Downcasting Rules
+
+### ✅ Correct Examples
+
+**Type checking with typeof and instanceof:**
+```javascript
+function processValue(value) {
+    if (typeof value === 'string') {
+        const str = value;  // TypeScript knows this is string
+        console.log('String length:', str.length);
+    } else if (typeof value === 'number') {
+        const num = value;  // TypeScript knows this is number
+        console.log('Number:', num);
+    } else if (value instanceof Array) {
+        const arr = value;  // TypeScript knows this is Array
+        console.log('Array length:', arr.length);
+    } else if (value instanceof Date) {
+        const date = value;  // TypeScript knows this is Date
+        console.log('Date:', date.toISOString());
+    }
+}
+```
+
+**TypeScript type guards:**
+```typescript
+interface TestCase {
+    caseNumber: string;
+    caseName: string;
+}
+
+interface UserRole {
+    username: string;
+    role: string;
+}
+
+function isTestCase(obj: any): obj is TestCase {
+    return obj && typeof obj.caseNumber === 'string' && typeof obj.caseName === 'string';
+}
+
+function isUserRole(obj: any): obj is UserRole {
+    return obj && typeof obj.username === 'string' && typeof obj.role === 'string';
+}
+
+function processItem(item: any) {
+    if (isTestCase(item)) {
+        // TypeScript knows item is TestCase
+        console.log('Test case:', item.caseNumber);
+    } else if (isUserRole(item)) {
+        // TypeScript knows item is UserRole
+        console.log('User role:', item.username);
+    } else {
+        console.warn('Unknown item type');
+    }
+}
+```
+
+**React component props checking:**
+```typescript
+interface Props {
+    data: any;
+}
+
+function DataComponent({ data }: Props) {
+    if (data && typeof data === 'object' && 'id' in data) {
+        const typedData = data as { id: string; name: string };
+        return <div>ID: {typedData.id}, Name: {typedData.name}</div>;
+    }
+    
+    return <div>Invalid data format</div>;
+}
+```
+
+### ❌ Incorrect Examples
+
+**Direct casting without type checking:**
+```javascript
+// WRONG - No type checking
+function processValue(value) {
+    const str = value;  // No type safety
+    console.log(str.length);  // Runtime error if not string
+}
+
+// WRONG - Unsafe type assertion
+function processData(data) {
+    const typedData = data;  // No runtime type checking
+    console.log(typedData.id);  // Runtime error if property doesn't exist
+}
+```
+
+**Unsafe TypeScript casting:**
+```typescript
+// WRONG - No type checking
+function processItem(item: any) {
+    const testCase = item as TestCase;  // Unsafe assertion
+    console.log(testCase.caseNumber);  // Runtime error if not TestCase
+}
+```
+
+## Best Practices
+
+### 1. Java Best Practices
+
+**Use getClass() for exact type matching:**
+```java
+@Override
+public boolean equals(Object o) {
+    if (this == o) {
+        return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+        return false;
+    }
+    // Safe to cast after instanceof check
+    MyClass that = (MyClass) o;
+    return Objects.equals(field, that.field);
+}
+```
+
+**Use instanceof for interface/class hierarchy:**
+```java
+public void processShape(Shape shape) {
+    if (shape instanceof Circle) {
+        Circle circle = (Circle) shape;
+        double area = Math.PI * circle.getRadius() * circle.getRadius();
+    } else if (shape instanceof Rectangle) {
+        Rectangle rectangle = (Rectangle) shape;
+        double area = rectangle.getWidth() * rectangle.getHeight();
+    }
+}
+```
+
+**Handle null references:**
+```java
+public void processObject(Object obj) {
+    if (obj == null) {
+        logger.warn("Object is null");
+        return;
+    }
+    if (obj instanceof String) {
+        String str = (String) obj;
+        // Process string
+    }
+}
+```
+
+### 2. JavaScript/TypeScript Best Practices
+
+**Use type guards for complex objects:**
+```typescript
+function isValidTestCase(obj: any): obj is TestCase {
+    return obj &&
+           typeof obj === 'object' &&
+           typeof obj.caseNumber === 'string' &&
+           typeof obj.caseName === 'string' &&
+           typeof obj.networkTopology === 'string';
+}
+```
+
+**Use discriminated unions:**
+```typescript
+type ApiResponse = 
+    | { type: 'success'; data: TestCase[] }
+    | { type: 'error'; message: string };
+
+function handleResponse(response: ApiResponse) {
+    if (response.type === 'success') {
+        // TypeScript knows response.data is TestCase[]
+        response.data.forEach(testCase => {
+            console.log(testCase.caseNumber);
+        });
+    } else {
+        // TypeScript knows response.message is string
+        console.error(response.message);
+    }
+}
+```
+
+### 3. Error Handling
+
+**Java exception handling:**
+```java
+public void safeProcess(Object obj) {
+    try {
+        if (obj instanceof String) {
+            String str = (String) obj;
+            processString(str);
+        } else {
+            throw new IllegalArgumentException("Expected String, got: " + obj.getClass());
+        }
+    } catch (ClassCastException e) {
+        logger.error("Type casting failed", e);
+        throw new IllegalArgumentException("Invalid object type", e);
+    }
+}
+```
+
+**JavaScript error handling:**
+```javascript
+function safeProcess(value) {
+    try {
+        if (typeof value === 'string') {
+            processString(value);
+        } else {
+            throw new Error(`Expected string, got: ${typeof value}`);
+        }
+    } catch (error) {
+        console.error('Processing failed:', error.message);
+        throw error;
+    }
+}
+```
+
+## Common Patterns
+
+### 1. Visitor Pattern
+```java
+public interface Visitor {
+    void visit(TestCase testCase);
+    void visit(UserRole userRole);
+}
+
+public void accept(Visitor visitor, Object obj) {
+    if (obj instanceof TestCase) {
+        visitor.visit((TestCase) obj);
+    } else if (obj instanceof UserRole) {
+        visitor.visit((UserRole) obj);
+    }
+}
+```
+
+### 2. Factory Pattern
+```java
+public class ObjectFactory {
+    public static Object createObject(String type, Object data) {
+        if ("testcase".equals(type)) {
+            if (data instanceof Map) {
+                return createTestCase((Map<String, Object>) data);
+            }
+        } else if ("userrole".equals(type)) {
+            if (data instanceof Map) {
+                return createUserRole((Map<String, Object>) data);
+            }
+        }
+        throw new IllegalArgumentException("Unknown type: " + type);
+    }
+}
+```
+
+### 3. Strategy Pattern
+```java
+public interface ProcessingStrategy {
+    boolean canProcess(Object obj);
+    void process(Object obj);
+}
+
+public class TestCaseStrategy implements ProcessingStrategy {
+    @Override
+    public boolean canProcess(Object obj) {
+        return obj instanceof TestCase;
+    }
+    
+    @Override
+    public void process(Object obj) {
+        if (obj instanceof TestCase) {
+            TestCase testCase = (TestCase) obj;
+            // Process test case
+        }
+    }
+}
+```
+
+## Summary
+
+- **Always check instanceof**: Before any downcasting operation
+- **Handle null references**: Check for null before type checking
+- **Use appropriate type checks**: instanceof for Java, typeof/instanceof for JavaScript
+- **Provide meaningful error messages**: When type checking fails
+- **Use type guards**: For complex type checking in TypeScript
+- **Follow established patterns**: Visitor, Factory, Strategy patterns for type handling
+- **Test type checking**: Ensure all type checking scenarios are covered in tests

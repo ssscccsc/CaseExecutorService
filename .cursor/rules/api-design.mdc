@@ -1,0 +1,52 @@
+---
+globs: *.java
+description: API design and RESTful conventions
+---
+
+# API Design Guidelines
+
+## RESTful API Conventions
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+- Use meaningful resource URLs
+- Return appropriate HTTP status codes
+- Use consistent response formats
+
+## Endpoints Structure
+- **User Roles**: `/api/user-roles`
+- **Test Case Sets**: `/api/test-case-sets`
+- **File Operations**: `/api/test-case-sets/{id}/download`
+
+## Response Format
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Operation successful"
+}
+```
+
+## Error Handling
+- Use proper HTTP status codes (400, 404, 500)
+- Return meaningful error messages
+- Log errors with appropriate log levels
+- Handle file upload validation errors
+
+## File Upload API
+- Support multipart/form-data
+- Validate file format (.zip, .tar.gz)
+- Validate file size (max 100MB)
+- Parse filename format: `name_version.extension`
+- Return file format information
+
+## Security Considerations
+- Validate input parameters
+- Sanitize file uploads
+- Use proper authentication (if implemented)
+- Implement CORS for frontend access
+
+## API Documentation
+- Use meaningful endpoint descriptions
+- Document request/response formats
+- Include example requests
+- Document error scenarios
+- **Note**: See yaml-documentation.mdc for YAML generation requirements

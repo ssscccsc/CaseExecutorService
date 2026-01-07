@@ -1,0 +1,40 @@
+---
+globs: *.tsx,*.ts
+description: Frontend React TypeScript development guidelines
+---
+
+# Frontend React Development Guidelines
+
+## Code Structure
+- **Components**: Located in [frontend/src/components/](mdc:frontend/src/components/)
+- **Pages**: Located in [frontend/src/pages/](mdc:frontend/src/pages/)
+- **Services**: Located in [frontend/src/services/](mdc:frontend/src/services/)
+- **Types**: Located in [frontend/src/types/](mdc:frontend/src/types/)
+- **Hooks**: Located in [frontend/src/hooks/](mdc:frontend/src/hooks/)
+
+## Key Files
+- [App.tsx](mdc:frontend/src/App.tsx) - Main application component
+- [Layout.tsx](mdc:frontend/src/components/Layout.tsx) - Application layout with navigation
+- [I18nContext.tsx](mdc:frontend/src/contexts/I18nContext.tsx) - Internationalization context
+- [useTranslation.ts](mdc:frontend/src/hooks/useTranslation.ts) - Translation hook
+
+## Development Rules
+- Functions must not exceed 50 lines
+- Files must not exceed 200 lines
+- Use TypeScript for type safety
+- Use React hooks (useState, useEffect, useContext)
+- Implement proper error handling with try-catch
+- Use Ant Design components for UI consistency
+- Follow React best practices (functional components, hooks)
+- Use proper TypeScript interfaces for props and state
+- Implement proper loading states and error handling
+
+## Internationalization
+- **Note**: See internationalization.mdc for detailed i18n guidelines
+
+## File Upload
+- Support .zip and .tar.gz file formats
+- Validate file size and format before upload
+- Use Ant Design Upload component with drag-and-drop
+- Display file format tags in management interface
+- Handle download with proper file extensions

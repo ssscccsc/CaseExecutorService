@@ -1,0 +1,69 @@
+---
+globs: *.yaml,*.yml
+description: YAML API documentation generation requirements
+---
+
+# YAML API Documentation Requirements
+
+## MANDATORY Documentation Rules
+- **Generate YAML documentation for ALL new API endpoints**
+- **Create YAML files simultaneously with controller implementation**
+- **File Location**: [backend/src/main/resources/yaml/](mdc:backend/src/main/resources/yaml/)
+- **Documentation Format**: OpenAPI/Swagger 3.0 specification
+
+## File Structure
+```
+backend/src/main/resources/yaml/
+├── user-role-api.yaml
+├── test-case-set-api.yaml
+└── README.md
+```
+
+## YAML File Requirements
+- **File Naming**: Use descriptive names (e.g., `{module}-api.yaml`)
+- **File Size**: Each YAML file must not exceed 200 lines
+- **Content Structure**: Follow OpenAPI 3.0 specification
+- **Language**: Use English for documentation
+- **Examples**: Include request/response examples
+
+## Required YAML Content
+```yaml
+openapi: 3.0.0
+info:
+  title: API Title
+  version: 1.0.0
+  description: API Description
+paths:
+  /api/endpoint:
+    get:
+      summary: Endpoint description
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseModel'
+components:
+  schemas:
+    ResponseModel:
+      type: object
+      properties:
+        field: {type: string}
+```
+
+## Documentation Standards
+- Include all HTTP methods (GET, POST, PUT, DELETE)
+- Document request parameters and body schemas
+- Document response schemas and status codes
+- Include error response documentation
+- Provide example requests and responses
+- Use consistent naming conventions
+- Document file upload endpoints with multipart/form-data
+
+## File Upload Documentation
+- Document supported file formats (.zip, .tar.gz)
+- Specify file size limits (100MB)
+- Document filename format requirements
+- Include Content-Type headers for downloads
+- Document file format validation rules
