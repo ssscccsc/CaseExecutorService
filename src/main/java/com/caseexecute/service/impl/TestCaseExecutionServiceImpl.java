@@ -151,6 +151,22 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                         LOGGER.error("Failed to update phone_list.yaml - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
                         // 不抛出异常，继续执行用例
                     }
+                    
+                    // 标记UE为使用中
+                    try {
+                        List<Long> ueIds = request.getUeList().stream()
+                                .filter(ue -> ue.getId() != null)
+                                .map(TestCaseExecutionRequest.UeInfo::getId)
+                                .collect(java.util.stream.Collectors.toList());
+                        
+                        if (!ueIds.isEmpty()) {
+                            com.caseexecute.util.UeStatusUtil.markUesInUse(ueIds, request.getResultReportUrl());
+                            LOGGER.info("UE已标记为使用中 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("标记UE为使用中失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
+                        // 不抛出异常，继续执行任务
+                    }
                 } else {
                     LOGGER.warn("UE列表为空，跳过phone_list.yaml更新 - Task ID: {}", request.getTaskId());
                 }
@@ -174,7 +190,25 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                 }
                 LOGGER.info("Task directory cleanup completed - Task ID: {}", request.getTaskId());
                 
-                // 5. 从运行任务列表中移除
+                // 5. 标记UE为可用（任务完成）
+                if (request.getUeList() != null && !request.getUeList().isEmpty()) {
+                    try {
+                        List<Long> ueIds = request.getUeList().stream()
+                                .filter(ue -> ue.getId() != null)
+                                .map(TestCaseExecutionRequest.UeInfo::getId)
+                                .collect(java.util.stream.Collectors.toList());
+                        
+                        if (!ueIds.isEmpty()) {
+                            com.caseexecute.util.UeStatusUtil.markUesAvailable(ueIds, request.getResultReportUrl());
+                            LOGGER.info("UE已标记为可用 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("标记UE为可用失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
+                        // 不抛出异常，继续清理
+                    }
+                }
+                
+                // 6. 从运行任务列表中移除
                 runningTasks.remove(request.getTaskId());
                 LOGGER.info("Task removed from running list - Task ID: {}", request.getTaskId());
             }
