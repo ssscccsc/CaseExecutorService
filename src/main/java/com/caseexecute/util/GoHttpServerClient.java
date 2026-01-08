@@ -1,6 +1,12 @@
 package com.caseexecute.util;
 
+import com.caseexecute.config.GoHttpServerConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,9 +28,12 @@ import org.apache.http.util.EntityUtils;
  * @since 2024-01-01
  */
 @Slf4j
-public class GoHttpServerClient {
+@Component
+public class GoHttpServerClient implements ApplicationContextAware {
 
     private final CloseableHttpClient httpClient;
+    private static ApplicationContext applicationContext;
+    private static GoHttpServerConfig goHttpServerConfig;
 
     public GoHttpServerClient() {
         this.httpClient = HttpClients.custom()
@@ -35,6 +44,33 @@ public class GoHttpServerClient {
                         .build()
                 )
                 .build();
+    }
+    
+    @Override
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
+        GoHttpServerClient.applicationContext = applicationContext;
+        // 从ApplicationContext中获取GoHttpServerConfig
+        try {
+            GoHttpServerClient.goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+            log.info("GoHttpServerConfig注入成功 - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+        } catch (Exception e) {
+            log.warn("GoHttpServerConfig注入失败: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取GoHttpServerConfig实例
+     */
+    private static GoHttpServerConfig getGoHttpServerConfig() {
+        if (goHttpServerConfig == null && applicationContext != null) {
+            try {
+                goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+                log.info("重新获取GoHttpServerConfig - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+            } catch (Exception e) {
+                log.warn("获取GoHttpServerConfig失败: {}", e.getMessage());
+            }
+        }
+        return goHttpServerConfig;
     }
 
     /**
@@ -60,6 +96,16 @@ public class GoHttpServerClient {
                 throw new IOException("gohttpserver地址不能为空");
             }
             
+            // 使用配置的gohttpserver URL替换URL中的IP地址
+            String actualGoHttpServerUrl = goHttpServerUrl;
+            GoHttpServerConfig config = getGoHttpServerConfig();
+            if (config != null && config.getUrl() != null && !config.getUrl().trim().isEmpty()) {
+                actualGoHttpServerUrl = UrlReplaceUtil.replaceUrlHost(goHttpServerUrl, config.getUrl());
+                if (!actualGoHttpServerUrl.equals(goHttpServerUrl)) {
+                    log.info("日志上传URL已替换 - 原始URL: {}, 替换后URL: {}", goHttpServerUrl, actualGoHttpServerUrl);
+                }
+            }
+            
             // 转换为绝对路径
             Path sourcePath = Paths.get(localFilePath).toAbsolutePath();
             log.info("解析后的绝对路径: {}", sourcePath.toString());
@@ -76,9 +122,9 @@ public class GoHttpServerClient {
             // 构建上传URL，使用gohttpserver的标准上传接口，拼上taskId目录
             String uploadUrl;
             if (taskId != null && !taskId.trim().isEmpty()) {
-                uploadUrl = goHttpServerUrl + "/upload/" + taskId;
+                uploadUrl = actualGoHttpServerUrl + "/upload/" + taskId;
             } else {
-                uploadUrl = goHttpServerUrl + "/upload";
+                uploadUrl = actualGoHttpServerUrl + "/upload";
             }
             
             // 读取文件内容
@@ -107,9 +153,9 @@ public class GoHttpServerClient {
                 if (statusCode == 200 || statusCode == 201) {
                     String fileUrl;
                     if (taskId != null && !taskId.trim().isEmpty()) {
-                        fileUrl = goHttpServerUrl + "/upload/" + taskId + "/" + targetFileName;
+                        fileUrl = actualGoHttpServerUrl + "/upload/" + taskId + "/" + targetFileName;
                     } else {
-                        fileUrl = goHttpServerUrl + "/upload/" + targetFileName;
+                        fileUrl = actualGoHttpServerUrl + "/upload/" + targetFileName;
                     }
                     log.info("本地文件上传成功: {}", fileUrl);
                     return fileUrl;

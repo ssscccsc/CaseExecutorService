@@ -16,6 +16,11 @@
       "sourceType": "com.caseexecute.config.FileStorageConfig"
     },
     {
+      "name": "gohttpserver",
+      "type": "com.caseexecute.config.GoHttpServerConfig",
+      "sourceType": "com.caseexecute.config.GoHttpServerConfig"
+    },
+    {
       "name": "websocket.client",
       "type": "com.caseexecute.config.WebSocketClientConfig",
       "sourceType": "com.caseexecute.config.WebSocketClientConfig"
@@ -99,6 +104,12 @@
       "type": "java.lang.Integer",
       "description": "单个用例执行超时时长（分钟），默认1分钟",
       "sourceType": "com.caseexecute.config.CaseExecutionConfig"
+    },
+    {
+      "name": "gohttpserver.url",
+      "type": "java.lang.String",
+      "description": "GoHttpServer服务地址",
+      "sourceType": "com.caseexecute.config.GoHttpServerConfig"
     },
     {
       "name": "websocket.client.connection-timeout",

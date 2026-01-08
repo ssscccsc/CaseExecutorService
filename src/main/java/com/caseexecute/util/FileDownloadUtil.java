@@ -1,6 +1,7 @@
 package com.caseexecute.util;
 
 import com.caseexecute.config.FileStorageConfig;
+import com.caseexecute.config.GoHttpServerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -34,6 +35,7 @@ public class FileDownloadUtil implements ApplicationContextAware {
     
     private static ApplicationContext applicationContext;
     private static FileStorageConfig fileStorageConfig;
+    private static GoHttpServerConfig goHttpServerConfig;
     
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
@@ -41,6 +43,13 @@ public class FileDownloadUtil implements ApplicationContextAware {
         // 从ApplicationContext中获取FileStorageConfig
         FileDownloadUtil.fileStorageConfig = applicationContext.getBean(FileStorageConfig.class);
         log.info("FileStorageConfig注入成功 - 根目录: {}", fileStorageConfig.getRootDirectory());
+        // 从ApplicationContext中获取GoHttpServerConfig
+        try {
+            FileDownloadUtil.goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+            log.info("GoHttpServerConfig注入成功 - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+        } catch (Exception e) {
+            log.warn("GoHttpServerConfig注入失败: {}", e.getMessage());
+        }
     }
     
     /**
@@ -55,6 +64,21 @@ public class FileDownloadUtil implements ApplicationContextAware {
     }
     
     /**
+     * 获取GoHttpServerConfig实例
+     */
+    private static GoHttpServerConfig getGoHttpServerConfig() {
+        if (goHttpServerConfig == null && applicationContext != null) {
+            try {
+                goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+                log.info("重新获取GoHttpServerConfig - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+            } catch (Exception e) {
+                log.warn("获取GoHttpServerConfig失败: {}", e.getMessage());
+            }
+        }
+        return goHttpServerConfig;
+    }
+    
+    /**
      * 下载文件到/opt目录下的taskId子目录
      * 
      * @param url 文件URL
@@ -64,6 +88,16 @@ public class FileDownloadUtil implements ApplicationContextAware {
      */
     public static Path downloadFile(String url, String taskId) throws Exception {
         log.info("开始下载文件 - URL: {}, 任务ID: {}", url, taskId);
+        
+        // 使用配置的gohttpserver URL替换URL中的IP地址
+        String actualUrl = url;
+        GoHttpServerConfig config = getGoHttpServerConfig();
+        if (config != null && config.getUrl() != null && !config.getUrl().trim().isEmpty()) {
+            actualUrl = UrlReplaceUtil.replaceUrlHost(url, config.getUrl());
+            if (!actualUrl.equals(url)) {
+                log.info("用例集下载URL已替换 - 原始URL: {}, 替换后URL: {}", url, actualUrl);
+            }
+        }
         
         // 获取配置的根目录
         String rootDir = getFileStorageConfig() != null ? getFileStorageConfig().getRootDirectory() : System.getProperty("java.io.tmpdir");
@@ -88,11 +122,11 @@ public class FileDownloadUtil implements ApplicationContextAware {
         }
         
         // 从URL中提取文件名
-        String fileName = url.substring(url.lastIndexOf("/") + 1);
+        String fileName = actualUrl.substring(actualUrl.lastIndexOf("/") + 1);
         Path filePath = taskDir.resolve(fileName);
         
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
+            HttpGet httpGet = new HttpGet(actualUrl);
             
             try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
                 if (response.getStatusLine().getStatusCode() != 200) {

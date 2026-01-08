@@ -6,6 +6,7 @@ import com.caseexecute.dto.TestCaseExecutionRequest;
 import com.caseexecute.dto.TestCaseResultReport;
 import com.caseexecute.service.TestCaseExecutionService;
 import com.caseexecute.util.FileDownloadUtil;
+import com.caseexecute.util.GoHttpServerClient;
 import com.caseexecute.util.HttpReportUtil;
 import com.caseexecute.util.PhoneListYamlUtil;
 import com.caseexecute.util.PythonExecutorUtil;
@@ -44,6 +45,9 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     
     @Autowired
     private HttpReportUtil httpReportUtil;
+    
+    @Autowired
+    private GoHttpServerClient goHttpServerClient;
     
     // 任务管理：存储正在执行的任务和进程信息
     private final Map<String, TaskExecutionInfo> runningTasks = new ConcurrentHashMap<>();
@@ -1010,7 +1014,6 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             LOGGER.info("Preparing to upload log file - Test case ID: {}, Round: {}, File path: {}, File size: {} bytes", 
                     testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), fileSize);
             
-            com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
             String uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
             LOGGER.info("Log file upload succeeded - Test case ID: {}, Round: {}, Upload URL: {}", 
                     testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
