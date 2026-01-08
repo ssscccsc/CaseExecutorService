@@ -1,5 +1,6 @@
 package com.caseexecute.util;
 
+import com.caseexecute.config.GoHttpServerConfig;
 import com.caseexecute.dto.TestCaseResultReport;
 import com.caseexecute.dto.TestCaseLogRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,9 @@ public class HttpReportUtil {
     @Autowired
     private ObjectMapper objectMapper;
     
+    @Autowired
+    private GoHttpServerConfig goHttpServerConfig;
+    
     /**
      * 上报用例执行结果
      * 
@@ -39,10 +43,21 @@ public class HttpReportUtil {
         try {
             log.info("开始上报用例执行结果 - 用例ID: {}, 轮次: {}, 状态: {}", 
                     report.getTestCaseId(), report.getRound(), report.getStatus());
-            log.info("上报URL: {}", reportUrl);
+            log.info("原始上报URL: {}", reportUrl);
+            
+            // 使用配置的主机IP替换上报URL中的IP地址
+            String actualReportUrl = reportUrl;
+            if (goHttpServerConfig != null && goHttpServerConfig.getHostIp() != null && !goHttpServerConfig.getHostIp().trim().isEmpty()) {
+                actualReportUrl = UrlReplaceUtil.replaceUrlHost(reportUrl, goHttpServerConfig.getHostIp());
+                if (!actualReportUrl.equals(reportUrl)) {
+                    log.info("结果上报URL已替换 - 原始URL: {}, 替换后URL: {}", reportUrl, actualReportUrl);
+                }
+            }
+            
+            log.info("实际上报URL: {}", actualReportUrl);
             
             try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                HttpPost httpPost = new HttpPost(reportUrl);
+                HttpPost httpPost = new HttpPost(actualReportUrl);
                 httpPost.setHeader("Content-Type", "application/json");
                 
                 String jsonBody = objectMapper.writeValueAsString(report);

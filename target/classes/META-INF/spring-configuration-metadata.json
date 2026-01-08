@@ -106,6 +106,12 @@
       "sourceType": "com.caseexecute.config.CaseExecutionConfig"
     },
     {
+      "name": "gohttpserver.host-ip",
+      "type": "java.lang.String",
+      "description": "主机IP配置（用于结果上报）",
+      "sourceType": "com.caseexecute.config.GoHttpServerConfig"
+    },
+    {
       "name": "gohttpserver.url",
       "type": "java.lang.String",
       "description": "GoHttpServer服务地址",

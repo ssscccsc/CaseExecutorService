@@ -22,11 +22,17 @@ public class GoHttpServerConfig {
     private String url;
     
     /**
+     * 主机IP配置（用于结果上报）
+     */
+    private String hostIp;
+    
+    /**
      * 打印配置信息（用于调试）
      */
     public void printConfig() {
         System.out.println("=== GoHttpServerConfig 配置信息 ===");
         System.out.println("url: " + url);
+        System.out.println("hostIp: " + hostIp);
         System.out.println("==================================");
     }
 }

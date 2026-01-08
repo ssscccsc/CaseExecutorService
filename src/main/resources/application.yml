@@ -63,6 +63,8 @@ case:
 # gohttpserver配置
 gohttpserver:
   url: http://localhost:8081
+  # 主机IP配置（用于结果上报）
+  host-ip: http://localhost:8080
 
 # WebSocket客户端配置
 websocket:
