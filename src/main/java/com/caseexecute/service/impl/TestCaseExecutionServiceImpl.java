@@ -114,7 +114,10 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
 
     @Override
     public void processTestCaseExecution(TestCaseExecutionRequest request) {
-        LOGGER.info("Starting test case execution task - Task ID: {}", request.getTaskId());
+        // 计算用例总数
+        int totalTestCaseCount = request.getTestCaseList() != null ? request.getTestCaseList().size() : 0;
+        LOGGER.info("Starting test case execution task - Task ID: {}, Total test case count: {}", 
+                request.getTaskId(), totalTestCaseCount);
         
         // 记录UE信息和采集策略信息
         logTaskContextInfo(request);
@@ -223,36 +226,50 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      * 执行用例列表
      */
     private void executeTestCaseList(TestCaseExecutionRequest request, Path extractPath) {
-        LOGGER.info("Starting to execute test case list - Test case count: {}", request.getTestCaseList().size());
+        // 计算用例总数
+        int totalTestCaseCount = request.getTestCaseList() != null ? request.getTestCaseList().size() : 0;
+        LOGGER.info("Starting to execute test case list - Task ID: {}, Total test case count: {}", 
+                request.getTaskId(), totalTestCaseCount);
         
         int successCount = 0;
         int failedCount = 0;
         int cancelledCount = 0;
+        int currentIndex = 0;
         
         for (TestCaseExecutionRequest.TestCaseInfo testCase : request.getTestCaseList()) {
+            currentIndex++;
+            
             if (isTaskCancelled(request, testCase)) {
                 cancelledCount++;
+                LOGGER.info("Test case cancelled - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}", 
+                        request.getTaskId(), currentIndex, totalTestCaseCount, 
+                        testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
                 continue;
             }
             
             try {
-                LOGGER.info("Starting to execute test case - Test case ID: {}, Test case number: {}, Round: {}", 
+                LOGGER.info("Starting to execute test case - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}", 
+                        request.getTaskId(), currentIndex, totalTestCaseCount,
                         testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
                 
-                executeSingleTestCase(request, testCase, extractPath);
+                executeSingleTestCase(request, testCase, extractPath, currentIndex, totalTestCaseCount);
                 successCount++;
                 
-                LOGGER.info("Test case execution completed - Test case ID: {}, Test case number: {}, Round: {}", 
+                LOGGER.info("Test case execution completed - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}", 
+                        request.getTaskId(), currentIndex, totalTestCaseCount,
                         testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
                 
             } catch (Exception e) {
                 failedCount++;
+                LOGGER.error("Test case execution failed - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}, Error: {}", 
+                        request.getTaskId(), currentIndex, totalTestCaseCount,
+                        testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), e.getMessage());
                 handleTestCaseExecutionException(request, testCase, e);
             }
         }
         
-        LOGGER.info("Test case list execution completed - Success: {}, Failed: {}, Cancelled: {}, Total: {}", 
-                successCount, failedCount, cancelledCount, request.getTestCaseList().size());
+        LOGGER.info("Test case list execution completed - Task ID: {}, Success: {}, Failed: {}, Cancelled: {}, Total: {}", 
+                request.getTaskId(), successCount, failedCount, cancelledCount, totalTestCaseCount);
     }
     
     /**
@@ -397,8 +414,11 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private void executeSingleTestCase(TestCaseExecutionRequest request, 
                                      TestCaseExecutionRequest.TestCaseInfo testCase, 
-                                     Path extractPath) throws Exception {
-        LOGGER.info("Starting to execute test case - Test case ID: {}, Test case number: {}, Round: {}", 
+                                     Path extractPath,
+                                     int currentIndex,
+                                     int totalCount) throws Exception {
+        LOGGER.info("Executing test case - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}", 
+                request.getTaskId(), currentIndex, totalCount,
                 testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound());
         
         Path scriptPath = findAndValidateScriptFile(request, testCase, extractPath);
@@ -407,7 +427,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         }
         
         try {
-            executePythonScript(request, testCase, scriptPath);
+            executePythonScript(request, testCase, scriptPath, currentIndex, totalCount);
         } catch (Exception e) {
             handlePythonExecutionException(request, testCase, e);
         }
@@ -448,9 +468,12 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
      */
     private void executePythonScript(TestCaseExecutionRequest request, 
                                     TestCaseExecutionRequest.TestCaseInfo testCase, 
-                                    Path scriptPath) throws Exception {
+                                    Path scriptPath,
+                                    int currentIndex,
+                                    int totalCount) throws Exception {
         Integer timeoutMinutes = caseExecutionConfig.getTimeoutMinutes();
-        LOGGER.info("Executing test case with configured timeout - Test case ID: {}, Test case number: {}, Round: {}, Timeout: {} minutes", 
+        LOGGER.info("Executing test case with configured timeout - Task ID: {}, Current: {}/{}, Test case ID: {}, Test case number: {}, Round: {}, Timeout: {} minutes", 
+                request.getTaskId(), currentIndex, totalCount,
                 testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), timeoutMinutes);
         
         TaskExecutionInfo taskInfo = runningTasks.get(request.getTaskId());
@@ -463,8 +486,8 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         
         if (taskInfo != null) {
             taskInfo.removeProcess(process);
-            LOGGER.info("Python process removed from task management - Task ID: {}, Test case ID: {}, Round: {}", 
-                    request.getTaskId(), testCase.getTestCaseId(), testCase.getRound());
+            LOGGER.info("Python process removed from task management - Task ID: {}, Current: {}/{}, Test case ID: {}, Round: {}", 
+                    request.getTaskId(), currentIndex, totalCount, testCase.getTestCaseId(), testCase.getRound());
         }
         
         processExecutionResult(request, testCase, process, completed, timeoutMinutes);
