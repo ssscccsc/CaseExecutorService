@@ -952,13 +952,64 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         Path taskDir = rootDirectory.resolve(request.getTaskId());
         Path logsDir = taskDir.resolve("logs");
         
+        // 获取UE名称前缀
+        String ueNamePrefix = getUeNamePrefix(request);
+        
         String logFileName;
         if (testCase.getTestCaseNumber() != null && !testCase.getTestCaseNumber().trim().isEmpty()) {
-            logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%s_%d.log", ueNamePrefix, testCase.getTestCaseNumber(), testCase.getRound());
+            } else {
+                logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
+            }
         } else {
-            logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%d_%d.log", ueNamePrefix, testCase.getTestCaseId(), testCase.getRound());
+            } else {
+                logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
+            }
         }
         return logsDir.resolve(logFileName);
+    }
+    
+    /**
+     * 获取UE名称前缀（用于文件名）
+     * 如果有多个UE，使用下划线连接所有UE名称
+     * 
+     * @param request 执行请求
+     * @return UE名称前缀，如果没有UE则返回null
+     */
+    private String getUeNamePrefix(TestCaseExecutionRequest request) {
+        if (request.getUeList() == null || request.getUeList().isEmpty()) {
+            return null;
+        }
+        
+        List<String> ueNames = new ArrayList<>();
+        for (TestCaseExecutionRequest.UeInfo ue : request.getUeList()) {
+            if (ue != null && ue.getName() != null && !ue.getName().trim().isEmpty()) {
+                // 清理UE名称，移除文件名不支持的字符
+                String cleanName = ue.getName().trim()
+                        .replaceAll("[\\\\/:*?\"<>|]", "_")  // 替换文件名不支持的字符
+                        .replaceAll("\\s+", "_");  // 将空格替换为下划线
+                if (!cleanName.isEmpty()) {
+                    ueNames.add(cleanName);
+                }
+            }
+        }
+        
+        if (ueNames.isEmpty()) {
+            return null;
+        }
+        
+        // 如果有多个UE，用下划线连接
+        String prefix = String.join("_", ueNames);
+        
+        // 限制文件名长度，避免过长（保留足够的空间给用例编号和轮次）
+        if (prefix.length() > 50) {
+            prefix = prefix.substring(0, 50);
+        }
+        
+        return prefix;
     }
     
     /**
