@@ -1435,6 +1435,28 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             LOGGER.info("Network element information not provided");
         }
         
+        // 记录执行机城市信息（拼音）
+        if (request.getExecutorCityPinyin() != null && !request.getExecutorCityPinyin().trim().isEmpty()) {
+            LOGGER.info("Executor city information (pinyin): {}", request.getExecutorCityPinyin());
+        } else {
+            LOGGER.info("Executor city information (pinyin) not provided");
+        }
+        
+        // 记录网络信息
+        if (request.getNetwork() != null && !request.getNetwork().trim().isEmpty()) {
+            LOGGER.info("Network information: {}", request.getNetwork());
+        } else {
+            LOGGER.info("Network information not provided");
+        }
+        
+        // 记录采集任务名称和描述
+        if (request.getCollectTaskName() != null && !request.getCollectTaskName().trim().isEmpty()) {
+            LOGGER.info("Collect task name: {}", request.getCollectTaskName());
+        }
+        if (request.getCollectTaskDescription() != null && !request.getCollectTaskDescription().trim().isEmpty()) {
+            LOGGER.info("Collect task description: {}", request.getCollectTaskDescription());
+        }
+        
         LOGGER.info("=== Task Context Information Logging Completed ===");
     }
     

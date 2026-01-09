@@ -79,6 +79,26 @@ public class TestCaseExecutionRequest {
     private List<NetworkElementInfo> networkElementInfoList;
     
     /**
+     * 执行机城市信息（拼音）
+     */
+    private String executorCityPinyin;
+    
+    /**
+     * 网络信息
+     */
+    private String network;
+    
+    /**
+     * 采集任务名称
+     */
+    private String collectTaskName;
+    
+    /**
+     * 采集任务描述
+     */
+    private String collectTaskDescription;
+    
+    /**
      * 用例信息
      */
     @Data
