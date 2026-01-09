@@ -1,6 +1,5 @@
 package com.caseexecute.util;
 
-import com.caseexecute.config.GoHttpServerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -8,10 +7,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSON;
 
@@ -28,67 +23,26 @@ import java.util.Map;
  * @since 2024-01-01
  */
 @Slf4j
-@Component
-public class UeStatusUtil implements ApplicationContextAware {
-    
-    private static ApplicationContext applicationContext;
-    private static GoHttpServerConfig goHttpServerConfig;
-    
-    @Override
-    public void setApplicationContext(@NonNull ApplicationContext applicationContext) {
-        UeStatusUtil.applicationContext = applicationContext;
-        try {
-            UeStatusUtil.goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
-            log.info("GoHttpServerConfig injected successfully - Host IP: {}", 
-                    goHttpServerConfig != null ? goHttpServerConfig.getHostIp() : "null");
-        } catch (Exception e) {
-            log.warn("GoHttpServerConfig injection failed: {}", e.getMessage());
-        }
-    }
-    
-    /**
-     * 获取GoHttpServerConfig实例
-     */
-    private static GoHttpServerConfig getGoHttpServerConfig() {
-        if (goHttpServerConfig == null && applicationContext != null) {
-            try {
-                goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
-                log.info("Re-obtained GoHttpServerConfig - Host IP: {}", 
-                        goHttpServerConfig != null ? goHttpServerConfig.getHostIp() : "null");
-            } catch (Exception e) {
-                log.warn("Failed to obtain GoHttpServerConfig: {}", e.getMessage());
-            }
-        }
-        return goHttpServerConfig;
-    }
+public class UeStatusUtil {
     
     /**
      * 标记UE为使用中
      * 
-     * @param ueIds UE ID列表（Integer类型）
-     * @param resultReportUrl 结果上报URL（保留参数以兼容旧代码，但不使用）
+     * @param ueIds UE ID列表
+     * @param resultReportUrl 结果上报URL（用于获取后台服务地址）
      * @return 是否成功
      */
-    public static boolean markUesInUse(List<Integer> ueIds, String resultReportUrl) {
+    public static boolean markUesInUse(List<Long> ueIds, String resultReportUrl) {
         if (ueIds == null || ueIds.isEmpty()) {
             return true;
         }
         
         try {
-            // 从application.yml中的gohttpserver.host-ip获取后台服务地址
-            GoHttpServerConfig config = getGoHttpServerConfig();
-            String baseUrl = null;
-            if (config != null && config.getHostIp() != null && !config.getHostIp().trim().isEmpty()) {
-                baseUrl = config.getHostIp();
-                log.info("Using configured host IP for UE status update - Host IP: {}", baseUrl);
-            } else {
-                // 如果配置不存在，回退到从resultReportUrl中提取
-                baseUrl = extractBaseUrl(resultReportUrl);
-                if (baseUrl == null) {
-                    log.warn("无法获取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
-                    return false;
-                }
-                log.warn("GoHttpServerConfig not available, falling back to extract from resultReportUrl - Base URL: {}", baseUrl);
+            // 从resultReportUrl中提取后台服务地址
+            String baseUrl = extractBaseUrl(resultReportUrl);
+            if (baseUrl == null) {
+                log.warn("无法从resultReportUrl中提取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
+                return false;
             }
             
             String apiUrl = baseUrl + "/ue-status/mark-in-use";
@@ -128,30 +82,21 @@ public class UeStatusUtil implements ApplicationContextAware {
     /**
      * 标记UE为可用（未使用）
      * 
-     * @param ueIds UE ID列表（Integer类型）
-     * @param resultReportUrl 结果上报URL（保留参数以兼容旧代码，但不使用）
+     * @param ueIds UE ID列表
+     * @param resultReportUrl 结果上报URL（用于获取后台服务地址）
      * @return 是否成功
      */
-    public static boolean markUesAvailable(List<Integer> ueIds, String resultReportUrl) {
+    public static boolean markUesAvailable(List<Long> ueIds, String resultReportUrl) {
         if (ueIds == null || ueIds.isEmpty()) {
             return true;
         }
         
         try {
-            // 从application.yml中的gohttpserver.host-ip获取后台服务地址
-            GoHttpServerConfig config = getGoHttpServerConfig();
-            String baseUrl = null;
-            if (config != null && config.getHostIp() != null && !config.getHostIp().trim().isEmpty()) {
-                baseUrl = config.getHostIp();
-                log.info("Using configured host IP for UE status update - Host IP: {}", baseUrl);
-            } else {
-                // 如果配置不存在，回退到从resultReportUrl中提取
-                baseUrl = extractBaseUrl(resultReportUrl);
-                if (baseUrl == null) {
-                    log.warn("无法获取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
-                    return false;
-                }
-                log.warn("GoHttpServerConfig not available, falling back to extract from resultReportUrl - Base URL: {}", baseUrl);
+            // 从resultReportUrl中提取后台服务地址
+            String baseUrl = extractBaseUrl(resultReportUrl);
+            if (baseUrl == null) {
+                log.warn("无法从resultReportUrl中提取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
+                return false;
             }
             
             String apiUrl = baseUrl + "/ue-status/mark-available";
