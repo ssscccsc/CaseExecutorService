@@ -98,9 +98,16 @@ public class PythonExecutorUtil implements ApplicationContextAware {
      * @param collectStrategyInfo 采集策略信息（可选）
      * @param ueList UE列表信息（可选）
      * @param taskCustomParams 采集任务的自定义参数（可选）
+     * @param executorCityPinyin 执行机城市信息（拼音，可选）
+     * @param network 网络信息（可选）
+     * @param networkElementJson 网元信息JSON字符串（可选）
+     * @param totalCaseCount 用例总数（可选）
+     * @param currentCaseIndex 当前用例序号（可选）
+     * @param jobId 采集任务名称（可选）
+     * @param jobDescription 采集任务描述（可选）
      * @return 进程对象
      */
-    public static Process startPythonProcess(Path scriptPath, Long testCaseId, String testCaseNumber, Integer round, String goHttpServerUrl, String taskId, String executorIp, TestCaseExecutionRequest.CollectStrategyInfo collectStrategyInfo, List<TestCaseExecutionRequest.UeInfo> ueList, String taskCustomParams) throws Exception {
+    public static Process startPythonProcess(Path scriptPath, Long testCaseId, String testCaseNumber, Integer round, String goHttpServerUrl, String taskId, String executorIp, TestCaseExecutionRequest.CollectStrategyInfo collectStrategyInfo, List<TestCaseExecutionRequest.UeInfo> ueList, String taskCustomParams, String executorCityPinyin, String network, String networkElementJson, Integer totalCaseCount, Integer currentCaseIndex, String jobId, String jobDescription) throws Exception {
         log.info("启动Python脚本进程 - 脚本路径: {}, 用例ID: {}, 轮次: {}", 
                 scriptPath, testCaseId, round);
         
@@ -232,7 +239,58 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             }
         }
         
-        // 构建命令参数：python3 script_path --ip executor_ip --category business_category --app app_value --dataset_round intent --key value --uelist ue_json
+        // 添加城市信息参数（拼音）
+        if (executorCityPinyin != null && !executorCityPinyin.trim().isEmpty()) {
+            commandArgs.add("--city");
+            commandArgs.add("\"" + executorCityPinyin + "\"");
+            log.info("添加城市信息参数: --city \"{}\"", executorCityPinyin);
+        }
+        
+        // 添加网络类型参数
+        if (network != null && !network.trim().isEmpty()) {
+            commandArgs.add("--network_type");
+            commandArgs.add("\"" + network + "\"");
+            log.info("添加网络类型参数: --network_type \"{}\"", network);
+        }
+        
+        // 添加网元信息参数
+        if (networkElementJson != null && !networkElementJson.trim().isEmpty()) {
+            // 对JSON字符串进行转义处理，避免命令行解析错误
+            String escapedNetworkElementJson = escapeJsonForCommandLine(networkElementJson);
+            commandArgs.add("--network_element");
+            commandArgs.add("\"" + escapedNetworkElementJson + "\"");
+            log.info("添加网元信息参数: --network_element \"{}\"", escapedNetworkElementJson);
+        }
+        
+        // 添加用例总数参数
+        if (totalCaseCount != null && totalCaseCount > 0) {
+            commandArgs.add("--total_case");
+            commandArgs.add(String.valueOf(totalCaseCount));
+            log.info("添加用例总数参数: --total_case {}", totalCaseCount);
+        }
+        
+        // 添加当前用例序号参数
+        if (currentCaseIndex != null && currentCaseIndex > 0) {
+            commandArgs.add("--current_device_case");
+            commandArgs.add(String.valueOf(currentCaseIndex));
+            log.info("添加当前用例序号参数: --current_device_case {}", currentCaseIndex);
+        }
+        
+        // 添加采集任务名称参数
+        if (jobId != null && !jobId.trim().isEmpty()) {
+            commandArgs.add("--job_id");
+            commandArgs.add("\"" + jobId + "\"");
+            log.info("添加采集任务名称参数: --job_id \"{}\"", jobId);
+        }
+        
+        // 添加采集任务描述参数
+        if (jobDescription != null && !jobDescription.trim().isEmpty()) {
+            commandArgs.add("--job_description");
+            commandArgs.add("\"" + jobDescription + "\"");
+            log.info("添加采集任务描述参数: --job_description \"{}\"", jobDescription);
+        }
+        
+        // 构建命令参数：python3 script_path --ip executor_ip --category business_category --app app_value --dataset_round intent --key value --uelist ue_json --city city_pinyin --network_type network --network_element network_element_json --total_case total --current_device_case current --job_id job_name --job_description job_desc
         ProcessBuilder processBuilder = new ProcessBuilder(commandArgs);
         processBuilder.redirectErrorStream(true);
         
@@ -1308,30 +1366,4 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             log.info("PythonExecutorUtil线程池已关闭");
         }
     }
-}
-
-    /**
-     * 关闭线程池（在应用关闭时调用）
-     */
-    @PreDestroy
-    public void shutdown() {
-        if (executorService != null && !executorService.isShutdown()) {
-            log.info("正在关闭PythonExecutorUtil线程池...");
-            executorService.shutdown();
-            try {
-                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
-                    log.warn("线程池未在10秒内关闭，强制关闭");
-                    executorService.shutdownNow();
-                    if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                        log.error("线程池无法关闭");
-                    }
-                }
-            } catch (InterruptedException e) {
-                executorService.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-            log.info("PythonExecutorUtil线程池已关闭");
-        }
-    }
-}
 }

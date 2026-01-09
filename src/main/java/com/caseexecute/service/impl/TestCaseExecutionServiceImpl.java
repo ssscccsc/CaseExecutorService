@@ -20,11 +20,13 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 用例执行服务实现类
@@ -481,7 +483,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             LOGGER.warn("Task execution info does not exist, cannot manage process - Task ID: {}", request.getTaskId());
         }
         
-        Process process = startPythonProcess(request, testCase, scriptPath, taskInfo);
+        Process process = startPythonProcess(request, testCase, scriptPath, taskInfo, currentIndex, totalCount);
         boolean completed = waitForProcessCompletion(request, testCase, process, taskInfo, timeoutMinutes);
         
         if (taskInfo != null) {
@@ -499,8 +501,31 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     private Process startPythonProcess(TestCaseExecutionRequest request, 
                                       TestCaseExecutionRequest.TestCaseInfo testCase, 
                                       Path scriptPath, 
-                                      TaskExecutionInfo taskInfo) throws Exception {
-        Process process = PythonExecutorUtil.startPythonProcess(scriptPath, testCase.getTestCaseId(), testCase.getTestCaseNumber(), testCase.getRound(), request.getLogReportUrl(), request.getTaskId(), request.getExecutorIp(), request.getCollectStrategyInfo(), request.getUeList(), request.getTaskCustomParams());
+                                      TaskExecutionInfo taskInfo,
+                                      int currentIndex,
+                                      int totalCount) throws Exception {
+        // 将网元信息列表转换为JSON字符串
+        String networkElementJson = convertNetworkElementListToJson(request.getNetworkElementInfoList());
+        
+        Process process = PythonExecutorUtil.startPythonProcess(
+                scriptPath, 
+                testCase.getTestCaseId(), 
+                testCase.getTestCaseNumber(), 
+                testCase.getRound(), 
+                request.getLogReportUrl(), 
+                request.getTaskId(), 
+                request.getExecutorIp(), 
+                request.getCollectStrategyInfo(), 
+                request.getUeList(), 
+                request.getTaskCustomParams(),
+                request.getExecutorCityPinyin(),
+                request.getNetwork(),
+                networkElementJson,
+                totalCount,
+                currentIndex,
+                request.getCollectTaskName(),
+                request.getCollectTaskDescription()
+        );
         
         if (taskInfo != null) {
             taskInfo.addProcess(process);
@@ -509,6 +534,54 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         }
         
         return process;
+    }
+    
+    /**
+     * 将网元信息列表转换为JSON字符串
+     * 
+     * @param networkElementInfoList 网元信息列表
+     * @return JSON字符串，如果列表为空则返回空字符串
+     */
+    private String convertNetworkElementListToJson(List<TestCaseExecutionRequest.NetworkElementInfo> networkElementInfoList) {
+        if (networkElementInfoList == null || networkElementInfoList.isEmpty()) {
+            return "";
+        }
+        
+        try {
+            // 构建网元信息的简化JSON格式
+            // 格式：[{"udg":{"ipv4":"160.2.16","port":"342"}},"vam": {"ipv6": "1923."}]
+            List<Map<String, Object>> networkElementList = new ArrayList<>();
+            
+            for (TestCaseExecutionRequest.NetworkElementInfo networkElement : networkElementInfoList) {
+                if (networkElement == null || networkElement.getName() == null) {
+                    continue;
+                }
+                
+                // 使用网元名称作为key，属性作为value
+                Map<String, Object> elementMap = new HashMap<>();
+                
+                if (networkElement.getAttributes() != null && !networkElement.getAttributes().isEmpty()) {
+                    Map<String, String> attributesMap = new HashMap<>();
+                    for (TestCaseExecutionRequest.NetworkElementInfo.AttributeInfo attr : networkElement.getAttributes()) {
+                        if (attr != null && attr.getName() != null && attr.getValue() != null) {
+                            attributesMap.put(attr.getName(), attr.getValue());
+                        }
+                    }
+                    elementMap.put(networkElement.getName(), attributesMap);
+                } else {
+                    // 如果没有属性，使用空对象
+                    elementMap.put(networkElement.getName(), new HashMap<>());
+                }
+                
+                networkElementList.add(elementMap);
+            }
+            
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.writeValueAsString(networkElementList);
+        } catch (Exception e) {
+            LOGGER.error("Failed to convert network element list to JSON - Error: {}", e.getMessage(), e);
+            return "";
+        }
     }
     
     /**
