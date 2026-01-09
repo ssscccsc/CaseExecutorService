@@ -74,6 +74,11 @@ public class TestCaseExecutionRequest {
     private String taskCustomParams;
     
     /**
+     * 网元信息列表
+     */
+    private List<NetworkElementInfo> networkElementInfoList;
+    
+    /**
      * 用例信息
      */
     @Data
@@ -219,5 +224,53 @@ public class TestCaseExecutionRequest {
          * 策略状态
          */
         private Integer status;
+    }
+    
+    /**
+     * 网元信息
+     */
+    @Data
+    public static class NetworkElementInfo {
+        
+        /**
+         * 网元ID
+         */
+        private Long id;
+        
+        /**
+         * 网元名称
+         */
+        private String name;
+        
+        /**
+         * 网元描述
+         */
+        private String description;
+        
+        /**
+         * 网元状态
+         */
+        private Integer status;
+        
+        /**
+         * 网元属性列表
+         */
+        private List<AttributeInfo> attributes;
+        
+        /**
+         * 网元属性信息
+         */
+        @Data
+        public static class AttributeInfo {
+            /**
+             * 属性名称
+             */
+            private String name;
+            
+            /**
+             * 属性值
+             */
+            private String value;
+        }
     }
 }

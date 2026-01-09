@@ -1414,6 +1414,27 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             LOGGER.warn("Collection strategy information not provided");
         }
         
+        // 记录网元信息
+        if (request.getNetworkElementInfoList() != null && !request.getNetworkElementInfoList().isEmpty()) {
+            LOGGER.info("Network element information:");
+            LOGGER.info("  - Network element count: {}", request.getNetworkElementInfoList().size());
+            for (TestCaseExecutionRequest.NetworkElementInfo networkElement : request.getNetworkElementInfoList()) {
+                LOGGER.info("  - Network Element ID: {}, Name: {}, Description: {}, Status: {}", 
+                        networkElement.getId(), networkElement.getName(), 
+                        networkElement.getDescription(), networkElement.getStatus());
+                if (networkElement.getAttributes() != null && !networkElement.getAttributes().isEmpty()) {
+                    LOGGER.info("    - Attribute count: {}", networkElement.getAttributes().size());
+                    for (TestCaseExecutionRequest.NetworkElementInfo.AttributeInfo attr : networkElement.getAttributes()) {
+                        LOGGER.info("      - {}: {}", attr.getName(), attr.getValue());
+                    }
+                } else {
+                    LOGGER.info("    - No attributes configured");
+                }
+            }
+        } else {
+            LOGGER.info("Network element information not provided");
+        }
+        
         LOGGER.info("=== Task Context Information Logging Completed ===");
     }
     
