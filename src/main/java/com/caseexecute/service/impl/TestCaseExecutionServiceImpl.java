@@ -6,7 +6,6 @@ import com.caseexecute.dto.TestCaseExecutionRequest;
 import com.caseexecute.dto.TestCaseResultReport;
 import com.caseexecute.service.TestCaseExecutionService;
 import com.caseexecute.util.FileDownloadUtil;
-import com.caseexecute.util.GoHttpServerClient;
 import com.caseexecute.util.HttpReportUtil;
 import com.caseexecute.util.PhoneListYamlUtil;
 import com.caseexecute.util.PythonExecutorUtil;
@@ -45,9 +44,6 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
     
     @Autowired
     private HttpReportUtil httpReportUtil;
-    
-    @Autowired
-    private GoHttpServerClient goHttpServerClient;
     
     // 任务管理：存储正在执行的任务和进程信息
     private final Map<String, TaskExecutionInfo> runningTasks = new ConcurrentHashMap<>();
@@ -151,22 +147,6 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                         LOGGER.error("Failed to update phone_list.yaml - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
                         // 不抛出异常，继续执行用例
                     }
-                    
-                    // 标记UE为使用中
-                    try {
-                        List<Long> ueIds = request.getUeList().stream()
-                                .filter(ue -> ue.getId() != null)
-                                .map(TestCaseExecutionRequest.UeInfo::getId)
-                                .collect(java.util.stream.Collectors.toList());
-                        
-                        if (!ueIds.isEmpty()) {
-                            com.caseexecute.util.UeStatusUtil.markUesInUse(ueIds, request.getResultReportUrl());
-                            LOGGER.info("UE已标记为使用中 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("标记UE为使用中失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
-                        // 不抛出异常，继续执行任务
-                    }
                 } else {
                     LOGGER.warn("UE列表为空，跳过phone_list.yaml更新 - Task ID: {}", request.getTaskId());
                 }
@@ -190,25 +170,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                 }
                 LOGGER.info("Task directory cleanup completed - Task ID: {}", request.getTaskId());
                 
-                // 5. 标记UE为可用（任务完成）
-                if (request.getUeList() != null && !request.getUeList().isEmpty()) {
-                    try {
-                        List<Long> ueIds = request.getUeList().stream()
-                                .filter(ue -> ue.getId() != null)
-                                .map(TestCaseExecutionRequest.UeInfo::getId)
-                                .collect(java.util.stream.Collectors.toList());
-                        
-                        if (!ueIds.isEmpty()) {
-                            com.caseexecute.util.UeStatusUtil.markUesAvailable(ueIds, request.getResultReportUrl());
-                            LOGGER.info("UE已标记为可用 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("标记UE为可用失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
-                        // 不抛出异常，继续清理
-                    }
-                }
-                
-                // 6. 从运行任务列表中移除
+                // 5. 从运行任务列表中移除
                 runningTasks.remove(request.getTaskId());
                 LOGGER.info("Task removed from running list - Task ID: {}", request.getTaskId());
             }
@@ -952,13 +914,64 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         Path taskDir = rootDirectory.resolve(request.getTaskId());
         Path logsDir = taskDir.resolve("logs");
         
+        // 获取UE名称，用于文件名
+        String ueNamePrefix = getUeNamePrefix(request);
+        
         String logFileName;
         if (testCase.getTestCaseNumber() != null && !testCase.getTestCaseNumber().trim().isEmpty()) {
-            logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%s_%d.log", ueNamePrefix, testCase.getTestCaseNumber(), testCase.getRound());
+            } else {
+                logFileName = String.format("%s_%d.log", testCase.getTestCaseNumber(), testCase.getRound());
+            }
         } else {
-            logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%d_%d.log", ueNamePrefix, testCase.getTestCaseId(), testCase.getRound());
+            } else {
+                logFileName = String.format("%d_%d.log", testCase.getTestCaseId(), testCase.getRound());
+            }
         }
         return logsDir.resolve(logFileName);
+    }
+    
+    /**
+     * 获取UE名称前缀（用于文件名）
+     * 如果有多个UE，使用下划线连接所有UE名称
+     * 
+     * @param request 执行请求
+     * @return UE名称前缀，如果没有UE则返回null
+     */
+    private String getUeNamePrefix(TestCaseExecutionRequest request) {
+        if (request.getUeList() == null || request.getUeList().isEmpty()) {
+            return null;
+        }
+        
+        List<String> ueNames = new ArrayList<>();
+        for (TestCaseExecutionRequest.UeInfo ue : request.getUeList()) {
+            if (ue != null && ue.getName() != null && !ue.getName().trim().isEmpty()) {
+                // 清理UE名称，移除文件名不支持的字符
+                String cleanName = ue.getName().trim()
+                        .replaceAll("[\\\\/:*?\"<>|]", "_")  // 替换文件名不支持的字符
+                        .replaceAll("\\s+", "_");  // 将空格替换为下划线
+                if (!cleanName.isEmpty()) {
+                    ueNames.add(cleanName);
+                }
+            }
+        }
+        
+        if (ueNames.isEmpty()) {
+            return null;
+        }
+        
+        // 如果有多个UE，用下划线连接
+        String prefix = String.join("_", ueNames);
+        
+        // 限制文件名长度，避免过长（保留足够的空间给用例编号和轮次）
+        if (prefix.length() > 50) {
+            prefix = prefix.substring(0, 50);
+        }
+        
+        return prefix;
     }
     
     /**
@@ -1048,6 +1061,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             LOGGER.info("Preparing to upload log file - Test case ID: {}, Round: {}, File path: {}, File size: {} bytes", 
                     testCase.getTestCaseId(), testCase.getRound(), logFilePath.toString(), fileSize);
             
+            com.caseexecute.util.GoHttpServerClient goHttpServerClient = new com.caseexecute.util.GoHttpServerClient();
             String uploadedLogUrl = goHttpServerClient.uploadLocalFile(logFilePath.toString(), logFileName, request.getLogReportUrl(), request.getTaskId());
             LOGGER.info("Log file upload succeeded - Test case ID: {}, Round: {}, Upload URL: {}", 
                     testCase.getTestCaseId(), testCase.getRound(), uploadedLogUrl);
