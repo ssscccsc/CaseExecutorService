@@ -1,5 +1,6 @@
 package com.caseexecute.util;
 
+import com.caseexecute.config.GoHttpServerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -7,6 +8,11 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSON;
 
@@ -23,13 +29,34 @@ import java.util.Map;
  * @since 2024-01-01
  */
 @Slf4j
-public class UeStatusUtil {
+@Component
+public class UeStatusUtil implements ApplicationContextAware {
+    
+    private static ApplicationContext applicationContext;
+    
+    @Override
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
+        UeStatusUtil.applicationContext = applicationContext;
+    }
+    
+    /**
+     * 获取GoHttpServerConfig配置
+     * 
+     * @return GoHttpServerConfig配置对象
+     */
+    private static GoHttpServerConfig getGoHttpServerConfig() {
+        if (applicationContext == null) {
+            log.warn("无法获取Spring ApplicationContext，无法读取gohttpserver配置");
+            return null;
+        }
+        return applicationContext.getBean(GoHttpServerConfig.class);
+    }
     
     /**
      * 标记UE为使用中
      * 
      * @param ueIds UE ID列表
-     * @param resultReportUrl 结果上报URL（用于获取后台服务地址）
+     * @param resultReportUrl 结果上报URL（已废弃，不再使用）
      * @return 是否成功
      */
     public static boolean markUesInUse(List<Long> ueIds, String resultReportUrl) {
@@ -38,14 +65,15 @@ public class UeStatusUtil {
         }
         
         try {
-            // 从resultReportUrl中提取后台服务地址
-            String baseUrl = extractBaseUrl(resultReportUrl);
+            // 从application.yml配置中获取后台服务地址
+            String baseUrl = getBaseUrlFromConfig();
             if (baseUrl == null) {
-                log.warn("无法从resultReportUrl中提取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
+                log.warn("无法从配置中获取后台服务地址，跳过UE状态更新");
                 return false;
             }
             
-            String apiUrl = baseUrl + "/ue-status/mark-in-use";
+            // 构建API URL，确保路径正确
+            String apiUrl = buildApiUrl(baseUrl, "/ue-status/mark-in-use");
             
             // 构建请求体
             Map<String, Object> requestBody = new HashMap<>();
@@ -83,7 +111,7 @@ public class UeStatusUtil {
      * 标记UE为可用（未使用）
      * 
      * @param ueIds UE ID列表
-     * @param resultReportUrl 结果上报URL（用于获取后台服务地址）
+     * @param resultReportUrl 结果上报URL（已废弃，不再使用）
      * @return 是否成功
      */
     public static boolean markUesAvailable(List<Long> ueIds, String resultReportUrl) {
@@ -92,14 +120,15 @@ public class UeStatusUtil {
         }
         
         try {
-            // 从resultReportUrl中提取后台服务地址
-            String baseUrl = extractBaseUrl(resultReportUrl);
+            // 从application.yml配置中获取后台服务地址
+            String baseUrl = getBaseUrlFromConfig();
             if (baseUrl == null) {
-                log.warn("无法从resultReportUrl中提取后台服务地址，跳过UE状态更新 - resultReportUrl: {}", resultReportUrl);
+                log.warn("无法从配置中获取后台服务地址，跳过UE状态更新");
                 return false;
             }
             
-            String apiUrl = baseUrl + "/ue-status/mark-available";
+            // 构建API URL，确保路径正确
+            String apiUrl = buildApiUrl(baseUrl, "/ue-status/mark-available");
             
             // 构建请求体
             Map<String, Object> requestBody = new HashMap<>();
@@ -134,39 +163,60 @@ public class UeStatusUtil {
     }
     
     /**
-     * 从结果上报URL中提取后台服务基础地址
+     * 从application.yml配置中获取后台服务基础地址
      * 
-     * @param resultReportUrl 结果上报URL
-     * @return 后台服务基础地址，如果提取失败则返回null
+     * @return 后台服务基础地址，如果获取失败则返回null
      */
-    private static String extractBaseUrl(String resultReportUrl) {
-        if (resultReportUrl == null || resultReportUrl.trim().isEmpty()) {
-            return null;
-        }
-        
+    private static String getBaseUrlFromConfig() {
         try {
-            // 例如：http://192.168.1.100:8080/api/test-result/report
-            // 提取：http://192.168.1.100:8080
-            int apiIndex = resultReportUrl.indexOf("/api/");
-            if (apiIndex > 0) {
-                return resultReportUrl.substring(0, apiIndex);
+            GoHttpServerConfig config = getGoHttpServerConfig();
+            if (config == null) {
+                log.warn("无法获取GoHttpServerConfig配置");
+                return null;
             }
             
-            // 如果没有/api/，尝试提取协议和主机部分
-            java.net.URL url = new java.net.URL(resultReportUrl);
-            String protocol = url.getProtocol();
-            String host = url.getHost();
-            int port = url.getPort();
-            
-            if (port != -1) {
-                return protocol + "://" + host + ":" + port;
-            } else {
-                return protocol + "://" + host;
+            String hostIp = config.getHostIp();
+            if (hostIp == null || hostIp.trim().isEmpty()) {
+                log.warn("gohttpserver.host-ip配置为空");
+                return null;
             }
+            
+            // 确保hostIp以http://或https://开头
+            String baseUrl = hostIp.trim();
+            if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+                baseUrl = "http://" + baseUrl;
+            }
+            
+            log.debug("从配置中获取后台服务地址: {}", baseUrl);
+            return baseUrl;
             
         } catch (Exception e) {
-            log.error("提取后台服务地址失败 - resultReportUrl: {}, 错误: {}", resultReportUrl, e.getMessage());
+            log.error("从配置中获取后台服务地址失败，错误: {}", e.getMessage(), e);
             return null;
+        }
+    }
+    
+    /**
+     * 构建API URL，确保路径正确
+     * 
+     * @param baseUrl 基础URL
+     * @param apiPath API路径（不包含/api前缀）
+     * @return 完整的API URL
+     */
+    private static String buildApiUrl(String baseUrl, String apiPath) {
+        // 移除baseUrl末尾的斜杠
+        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        
+        // 确保apiPath以斜杠开头
+        String normalizedApiPath = apiPath.startsWith("/") ? apiPath : "/" + apiPath;
+        
+        // 检查baseUrl是否已经包含/api路径
+        if (normalizedBaseUrl.endsWith("/api")) {
+            // 如果baseUrl已经包含/api，直接拼接apiPath
+            return normalizedBaseUrl + normalizedApiPath;
+        } else {
+            // 如果baseUrl不包含/api，添加/api前缀
+            return normalizedBaseUrl + "/api" + normalizedApiPath;
         }
     }
 }
