@@ -133,13 +133,24 @@ public class PythonExecutorUtil implements ApplicationContextAware {
             Files.createDirectories(logsDir);
         }
         
-        // 创建日志文件路径 - 使用用例编号_轮次.log格式
+        // 获取UE名称前缀
+        String ueNamePrefix = getUeNamePrefix(ueList);
+        
+        // 创建日志文件路径 - 使用UE名称前缀_用例编号_轮次.log格式
         String logFileName;
         if (testCaseNumber != null && !testCaseNumber.trim().isEmpty()) {
-            logFileName = String.format("%s_%d.log", testCaseNumber, round);
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%s_%d.log", ueNamePrefix, testCaseNumber, round);
+            } else {
+                logFileName = String.format("%s_%d.log", testCaseNumber, round);
+            }
         } else {
             // 如果没有用例编号，则使用用例ID
-            logFileName = String.format("%d_%d.log", testCaseId, round);
+            if (ueNamePrefix != null && !ueNamePrefix.isEmpty()) {
+                logFileName = String.format("%s_%d_%d.log", ueNamePrefix, testCaseId, round);
+            } else {
+                logFileName = String.format("%d_%d.log", testCaseId, round);
+            }
         }
         Path logFilePath = logsDir.resolve(logFileName);
         
@@ -328,6 +339,46 @@ public class PythonExecutorUtil implements ApplicationContextAware {
         startOutputReader(process, logFilePath, testCaseId, round);
         
         return process;
+    }
+    
+    /**
+     * 获取UE名称前缀（用于文件名）
+     * 如果有多个UE，使用下划线连接所有UE名称
+     * 
+     * @param ueList UE列表信息
+     * @return UE名称前缀，如果没有UE则返回null
+     */
+    private static String getUeNamePrefix(List<TestCaseExecutionRequest.UeInfo> ueList) {
+        if (ueList == null || ueList.isEmpty()) {
+            return null;
+        }
+        
+        List<String> ueNames = new ArrayList<>();
+        for (TestCaseExecutionRequest.UeInfo ue : ueList) {
+            if (ue != null && ue.getName() != null && !ue.getName().trim().isEmpty()) {
+                // 清理UE名称，移除文件名不支持的字符
+                String cleanName = ue.getName().trim()
+                        .replaceAll("[\\\\/:*?\"<>|]", "_")  // 替换文件名不支持的字符
+                        .replaceAll("\\s+", "_");  // 将空格替换为下划线
+                if (!cleanName.isEmpty()) {
+                    ueNames.add(cleanName);
+                }
+            }
+        }
+        
+        if (ueNames.isEmpty()) {
+            return null;
+        }
+        
+        // 如果有多个UE，用下划线连接
+        String prefix = String.join("_", ueNames);
+        
+        // 限制文件名长度，避免过长（保留足够的空间给用例编号和轮次）
+        if (prefix.length() > 50) {
+            prefix = prefix.substring(0, 50);
+        }
+        
+        return prefix;
     }
     
     /**
