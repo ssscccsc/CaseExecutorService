@@ -62,12 +62,14 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         private final List<Process> processes;
         private CompletableFuture<Void> executionFuture;
         private final LocalDateTime startTime;
+        private final List<Long> ueIds;
         
-        public TaskExecutionInfo(String taskId, CompletableFuture<Void> executionFuture) {
+        public TaskExecutionInfo(String taskId, CompletableFuture<Void> executionFuture, List<Long> ueIds) {
             this.taskId = taskId;
             this.processes = new ArrayList<>();
             this.executionFuture = executionFuture;
             this.startTime = LocalDateTime.now();
+            this.ueIds = ueIds != null ? new ArrayList<>(ueIds) : new ArrayList<>();
         }
         
         public void setExecutionFuture(CompletableFuture<Void> executionFuture) {
@@ -112,6 +114,7 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         public List<Process> getProcesses() { return processes; }
         public CompletableFuture<Void> getExecutionFuture() { return executionFuture; }
         public LocalDateTime getStartTime() { return startTime; }
+        public List<Long> getUeIds() { return ueIds; }
     }
 
     @Override
@@ -124,10 +127,19 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
         // 记录UE信息和采集策略信息
         logTaskContextInfo(request);
         
+        // 提取UE ID列表
+        List<Long> ueIds = new ArrayList<>();
+        if (request.getUeList() != null && !request.getUeList().isEmpty()) {
+            ueIds = request.getUeList().stream()
+                    .filter(ue -> ue != null && ue.getId() != null)
+                    .map(TestCaseExecutionRequest.UeInfo::getId)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
         // 先创建任务执行信息并存储，确保在异步执行开始前就可用
-        TaskExecutionInfo taskInfo = new TaskExecutionInfo(request.getTaskId(), null);
+        TaskExecutionInfo taskInfo = new TaskExecutionInfo(request.getTaskId(), null, ueIds);
         runningTasks.put(request.getTaskId(), taskInfo);
-        LOGGER.info("Task added to running list - Task ID: {}", request.getTaskId());
+        LOGGER.info("Task added to running list - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
         
         // 异步执行，避免阻塞接口响应
         CompletableFuture<Void> executionFuture = CompletableFuture.runAsync(() -> {
@@ -159,14 +171,14 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                     
                     // 标记UE为使用中
                     try {
-                        List<Long> ueIds = request.getUeList().stream()
+                        List<Long> ueIdsToMark = request.getUeList().stream()
                                 .filter(ue -> ue.getId() != null)
                                 .map(TestCaseExecutionRequest.UeInfo::getId)
                                 .collect(java.util.stream.Collectors.toList());
                         
-                        if (!ueIds.isEmpty()) {
-                            com.caseexecute.util.UeStatusUtil.markUesInUse(ueIds, request.getResultReportUrl());
-                            LOGGER.info("UE已标记为使用中 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
+                        if (!ueIdsToMark.isEmpty()) {
+                            com.caseexecute.util.UeStatusUtil.markUesInUse(ueIdsToMark, request.getResultReportUrl());
+                            LOGGER.info("UE已标记为使用中 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIdsToMark);
                         }
                     } catch (Exception e) {
                         LOGGER.error("标记UE为使用中失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
@@ -198,14 +210,14 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
                 // 5. 标记UE为可用（任务完成）
                 if (request.getUeList() != null && !request.getUeList().isEmpty()) {
                     try {
-                        List<Long> ueIds = request.getUeList().stream()
+                        List<Long> ueIdsToRelease = request.getUeList().stream()
                                 .filter(ue -> ue.getId() != null)
                                 .map(TestCaseExecutionRequest.UeInfo::getId)
                                 .collect(java.util.stream.Collectors.toList());
                         
-                        if (!ueIds.isEmpty()) {
-                            com.caseexecute.util.UeStatusUtil.markUesAvailable(ueIds, request.getResultReportUrl());
-                            LOGGER.info("UE已标记为可用 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIds);
+                        if (!ueIdsToRelease.isEmpty()) {
+                            com.caseexecute.util.UeStatusUtil.markUesAvailable(ueIdsToRelease, request.getResultReportUrl());
+                            LOGGER.info("UE已标记为可用 - Task ID: {}, UE IDs: {}", request.getTaskId(), ueIdsToRelease);
                         }
                     } catch (Exception e) {
                         LOGGER.error("标记UE为可用失败 - Task ID: {}, Error: {}", request.getTaskId(), e.getMessage(), e);
@@ -964,6 +976,19 @@ public class TestCaseExecutionServiceImpl implements TestCaseExecutionService {
             
             taskInfo.cancelAllProcesses();
             taskInfo.cancelExecution();
+            
+            // 释放UE
+            List<Long> ueIds = taskInfo.getUeIds();
+            if (ueIds != null && !ueIds.isEmpty()) {
+                try {
+                    com.caseexecute.util.UeStatusUtil.markUesAvailable(ueIds, null);
+                    LOGGER.info("UE已标记为可用 - Task ID: {}, UE IDs: {}", taskId, ueIds);
+                } catch (Exception e) {
+                    LOGGER.error("标记UE为可用失败 - Task ID: {}, UE IDs: {}, Error: {}", taskId, ueIds, e.getMessage(), e);
+                    // 不抛出异常，继续清理
+                }
+            }
+            
             runningTasks.remove(taskId);
             
             LOGGER.info("Task cancellation succeeded - Task ID: {}", taskId);
