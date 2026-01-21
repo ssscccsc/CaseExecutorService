@@ -38,42 +38,30 @@ public class UeStatusUtil implements ApplicationContextAware {
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         UeStatusUtil.applicationContext = applicationContext;
+        // 从ApplicationContext中获取GoHttpServerConfig
         try {
-            goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
-            if (goHttpServerConfig != null) {
-                log.info("UeStatusUtil - GoHttpServerConfig注入成功 - hostIp: {}", goHttpServerConfig.getHostIp());
-            } else {
-                log.warn("UeStatusUtil - GoHttpServerConfig为null，可能配置未正确加载");
-            }
-        } catch (BeansException e) {
-            log.error("UeStatusUtil - 无法获取GoHttpServerConfig Bean，错误: {}", e.getMessage(), e);
+            UeStatusUtil.goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+            log.info("GoHttpServerConfig注入成功 - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+        } catch (Exception e) {
+            log.warn("GoHttpServerConfig注入失败: {}", e.getMessage());
         }
     }
     
     /**
-     * 获取GoHttpServerConfig配置
-     * 
-     * @return GoHttpServerConfig配置对象
+     * 获取GoHttpServerConfig实例
      */
     private static GoHttpServerConfig getGoHttpServerConfig() {
-        if (goHttpServerConfig != null) {
-            return goHttpServerConfig;
-        }
-        if (applicationContext == null) {
-            log.warn("无法获取Spring ApplicationContext，无法读取gohttpserver配置");
-            return null;
-        }
-        try {
-            goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
-            if (goHttpServerConfig != null) {
-                log.info("UeStatusUtil - 重新获取GoHttpServerConfig成功 - hostIp: {}", goHttpServerConfig.getHostIp());
+        if (goHttpServerConfig == null && applicationContext != null) {
+            try {
+                goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+                log.info("重新获取GoHttpServerConfig - URL: {}", goHttpServerConfig != null ? goHttpServerConfig.getUrl() : "null");
+            } catch (Exception e) {
+                log.warn("获取GoHttpServerConfig失败: {}", e.getMessage());
             }
-            return goHttpServerConfig;
-        } catch (BeansException e) {
-            log.error("UeStatusUtil - 从ApplicationContext获取GoHttpServerConfig失败，错误: {}", e.getMessage(), e);
-            return null;
         }
+        return goHttpServerConfig;
     }
+
     
     /**
      * 标记UE为使用中
