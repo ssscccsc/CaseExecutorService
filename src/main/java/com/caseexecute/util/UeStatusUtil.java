@@ -33,10 +33,21 @@ import java.util.Map;
 public class UeStatusUtil implements ApplicationContextAware {
     
     private static ApplicationContext applicationContext;
+    private static GoHttpServerConfig goHttpServerConfig;
     
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         UeStatusUtil.applicationContext = applicationContext;
+        try {
+            goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+            if (goHttpServerConfig != null) {
+                log.info("UeStatusUtil - GoHttpServerConfig注入成功 - hostIp: {}", goHttpServerConfig.getHostIp());
+            } else {
+                log.warn("UeStatusUtil - GoHttpServerConfig为null，可能配置未正确加载");
+            }
+        } catch (BeansException e) {
+            log.error("UeStatusUtil - 无法获取GoHttpServerConfig Bean，错误: {}", e.getMessage(), e);
+        }
     }
     
     /**
@@ -45,11 +56,23 @@ public class UeStatusUtil implements ApplicationContextAware {
      * @return GoHttpServerConfig配置对象
      */
     private static GoHttpServerConfig getGoHttpServerConfig() {
+        if (goHttpServerConfig != null) {
+            return goHttpServerConfig;
+        }
         if (applicationContext == null) {
             log.warn("无法获取Spring ApplicationContext，无法读取gohttpserver配置");
             return null;
         }
-        return applicationContext.getBean(GoHttpServerConfig.class);
+        try {
+            goHttpServerConfig = applicationContext.getBean(GoHttpServerConfig.class);
+            if (goHttpServerConfig != null) {
+                log.info("UeStatusUtil - 重新获取GoHttpServerConfig成功 - hostIp: {}", goHttpServerConfig.getHostIp());
+            }
+            return goHttpServerConfig;
+        } catch (BeansException e) {
+            log.error("UeStatusUtil - 从ApplicationContext获取GoHttpServerConfig失败，错误: {}", e.getMessage(), e);
+            return null;
+        }
     }
     
     /**
